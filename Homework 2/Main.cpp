@@ -89,11 +89,11 @@ int main() {
         for (int i = 0; i < 1000; i++)
         {
             if (!particles[i].isActive) {
-                if (IsKeyDown(keys.emitKey) && key_emission >= (1.0f/x_rate)) {
+                if ((IsKeyDown(keys.emitKey) || IsMouseButtonDown(keys.emitKey)) && key_emission >= (1.0f/x_rate)) {
                     initParticle(particles[i], true);
                     key_emission -= (1.0f/x_rate);
                 }
-                else if (IsMouseButtonDown(keys.mouseButton) && mouse_emission >= (1.0f/y_rate)) {
+                else if ((IsMouseButtonDown(keys.mouseButton) || IsKeyDown(keys.mouseButton)) && mouse_emission >= (1.0f/y_rate)) {
                     initParticle(particles[i], false);
                     mouse_emission -= (1.0f/y_rate);
                 }
