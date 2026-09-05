@@ -116,7 +116,7 @@ int main() {
                 }
         }
         BeginDrawing();
-        ClearBackground(BLACK);
+        ClearBackground(WHITE);
 
         for (int i = 0; i < 1000; i++)
         {
