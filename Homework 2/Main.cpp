@@ -65,15 +65,19 @@ int main() {
 
     while(!WindowShouldClose()) {
         float dt = GetFrameTime();
-        key_emission += dt;
-        mouse_emission += dt;
+
+        bool isKeyEmitting = IsKeyDown(keys.emitKey) || IsMouseButtonDown(keys.emitKey);
+        bool isMouseEmitting = IsMouseButtonDown(keys.mouseButton) || IsKeyDown(keys.mouseButton);
+        
+        key_emission += isKeyEmitting ? dt : 0;
+        mouse_emission += isMouseEmitting ? dt : 0;
 
         if (IsKeyDown(keys.xUp)) {
             x_rate =  (x_rate >= 50) ? 50 : (x_rate + 1);
             std::cout << "x_rate: " << x_rate << std::endl; 
         }
         if (IsKeyDown(keys.xDown)){
-            x_rate =  (x_rate <= 0) ? 0 : (x_rate - 1);
+            x_rate =  (x_rate <= 1) ? 1 : (x_rate - 1);
             std::cout << "x_rate: " << x_rate << std::endl; 
         }
         if (IsKeyDown(keys.yUp)){
@@ -81,7 +85,7 @@ int main() {
             std::cout << "y_rate: " << y_rate << std::endl; 
         }
         if (IsKeyDown(keys.yDown)){
-            y_rate =  (y_rate <= 0) ? 0 : (y_rate - 1);
+            y_rate =  (y_rate <= 1) ? 1 : (y_rate - 1);
             std::cout << "y_rate: " << y_rate << std::endl; 
         }
         
@@ -89,11 +93,11 @@ int main() {
         for (int i = 0; i < 1000; i++)
         {
             if (!particles[i].isActive) {
-                if ((IsKeyDown(keys.emitKey) || IsMouseButtonDown(keys.emitKey)) && key_emission >= (1.0f/x_rate)) {
+                if (isKeyEmitting && key_emission >= (1.0f/x_rate)) {
                     initParticle(particles[i], true);
                     key_emission -= (1.0f/x_rate);
                 }
-                else if ((IsMouseButtonDown(keys.mouseButton) || IsKeyDown(keys.mouseButton)) && mouse_emission >= (1.0f/y_rate)) {
+                else if (isMouseEmitting && mouse_emission >= (1.0f/y_rate)) {
                     initParticle(particles[i], false);
                     mouse_emission -= (1.0f/y_rate);
                 }
