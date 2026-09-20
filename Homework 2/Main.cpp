@@ -1,6 +1,21 @@
 #include <raylib.h>
 #include <raymath.h>
+#include <fstream>
+#include <iostream>
 
+#define WINDOW_WIDTH 800
+#define WINDOW_HEIGHT 600
+#define FPS 144
+#define PARTICLE_RADIUS 5
+
+struct InputKeys{
+    int xUp;
+    int xDown;
+    int yUp;
+    int yDown;
+    int mouseButton;
+    int emitKey;
+};
 
 struct Particle {
     bool isActive = false;
@@ -12,14 +27,34 @@ struct Particle {
     Color color;
 };
 
-const float FPS(144);
-
 void initParticle(Particle &p, bool keyMode);
 float GetRandomFloat(float min, float max);
 
+InputKeys loadConfig(std::string file) {
+    std::ifstream configFile(file);
+
+    if (!configFile.is_open()) {
+        std::cout << "Error: config file could not open."<< std::endl;
+        return InputKeys{KEY_RIGHT, KEY_LEFT, KEY_UP, KEY_DOWN, MOUSE_BUTTON_LEFT, KEY_SPACE};
+    }
+
+    InputKeys inputKeys;
+    if (configFile >> inputKeys.xUp >> inputKeys.xDown >> inputKeys.yUp >> inputKeys.yDown
+            >> inputKeys.mouseButton >> inputKeys.emitKey) {
+        std::cout << "Successfully read config.\n";
+    } else {
+        std::cout << "Failed to read 6 consecutive keys from the file.\n";
+        return InputKeys{KEY_RIGHT, KEY_LEFT, KEY_UP, KEY_DOWN, MOUSE_BUTTON_LEFT, KEY_SPACE};
+    }
+
+    return inputKeys;
+}
+
 int main() {
-    InitWindow(800, 600, "Hello Raylib");
+    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Hello Raylib");
     SetTargetFPS(FPS);
+
+    InputKeys keys = loadConfig("config.ini");
 
     Particle* particles = new Particle[1000];
     int x_rate = 25;
@@ -30,27 +65,39 @@ int main() {
 
     while(!WindowShouldClose()) {
         float dt = GetFrameTime();
-        key_emission += dt;
-        mouse_emission += dt;
 
-        if (IsKeyDown(KEY_RIGHT))
-            x_rate =  (x_rate > 50) ? 50 : (x_rate + 1);
-        if (IsKeyDown(KEY_LEFT))
-            x_rate =  (x_rate < 0) ? 0 : (x_rate - 1);
-        if (IsKeyDown(KEY_UP))
-            y_rate =  (y_rate > 50) ? 0 : (y_rate + 1);
-        if (IsKeyDown(KEY_DOWN))
-            y_rate =  (y_rate < 0) ? 0 : (y_rate - 1);
+        bool isKeyEmitting = IsKeyDown(keys.emitKey) || IsMouseButtonDown(keys.emitKey);
+        bool isMouseEmitting = IsMouseButtonDown(keys.mouseButton) || IsKeyDown(keys.mouseButton);
+        
+        key_emission += isKeyEmitting ? dt : 0;
+        mouse_emission += isMouseEmitting ? dt : 0;
+
+        if (IsKeyDown(keys.xUp)) {
+            x_rate =  (x_rate >= 50) ? 50 : (x_rate + 1);
+            std::cout << "x_rate: " << x_rate << std::endl; 
+        }
+        if (IsKeyDown(keys.xDown)){
+            x_rate =  (x_rate <= 1) ? 1 : (x_rate - 1);
+            std::cout << "x_rate: " << x_rate << std::endl; 
+        }
+        if (IsKeyDown(keys.yUp)){
+            y_rate =  (y_rate >= 50) ? 50 : (y_rate + 1);
+            std::cout << "y_rate: " << y_rate << std::endl; 
+        }
+        if (IsKeyDown(keys.yDown)){
+            y_rate =  (y_rate <= 1) ? 1 : (y_rate - 1);
+            std::cout << "y_rate: " << y_rate << std::endl; 
+        }
         
         // emission
         for (int i = 0; i < 1000; i++)
         {
             if (!particles[i].isActive) {
-                if (IsKeyDown(KEY_SPACE) && key_emission >= (1.0f/x_rate)) {
+                if (isKeyEmitting && key_emission >= (1.0f/x_rate)) {
                     initParticle(particles[i], true);
                     key_emission -= (1.0f/x_rate);
                 }
-                else if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && mouse_emission >= (1.0f/y_rate)) {
+                else if (isMouseEmitting && mouse_emission >= (1.0f/y_rate)) {
                     initParticle(particles[i], false);
                     mouse_emission -= (1.0f/y_rate);
                 }
@@ -68,16 +115,16 @@ int main() {
                 particles[i].lifeTime -= dt;
                 particles[i].isActive = (particles[i].lifeTime <= 0) ? false : true;
                 particles[i].color.a = (particles[i].isActive) ? 
-                    (unsigned char) (255 * (particles[i].lifeTime /  particles[i].defLifeTime))
+                    (unsigned char) (255 * (particles[i].lifeTime/particles[i].defLifeTime))
                     : 0;
                 }
         }
         BeginDrawing();
-        ClearBackground(BLACK);
+        ClearBackground(WHITE);
 
         for (int i = 0; i < 1000; i++)
         {
-            DrawCircle(particles[i].position.x, particles[i].position.y, 5, particles[i].color);
+            DrawCircleV(particles[i].position, PARTICLE_RADIUS, particles[i].color);
         }
         EndDrawing();
     }
