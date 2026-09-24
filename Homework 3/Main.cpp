@@ -7,13 +7,14 @@
     const float FPS = 60;
     const float TIMESTEP = 1 / 120.0f; // Sets the timestep to 1 / FPS. But timestep can be any very small value.
     const float FRICTION = 0.5;
-    const int BALL_COUNT = 5;
+    const int BALL_COUNT = 10;
     const int POCKET_COUNT = 4;
     const int WALL_COUNT = 4;
     const Color BALL_COLOR = SKYBLUE;
-    const Color WALL_COLOR = DARKBROWN;
-    const Color TABLE_COLOR = LIME;
     const Color INDICATOR_COLOR = GREEN;
+    const Color TABLE_COLOR = {30, 110, 70, 255};
+    const Color RAIL_COLOR = {75, 45, 25, 255};
+    const Color BALL_OUTLINE_COLOR = {20, 20, 20, 255};
     int ELASTICITY = 1;
     bool dragging = false;
     bool canDrag = true;
@@ -21,13 +22,11 @@
     float cueStickWidth = 5.0f;
 
     const float VELOCITY_TOLERANCE = 1.0f;
-    const float MAX_SPEED = 2400.0f;
+    const float MAX_SPEED = 1500.0f;
 
     const float MAX_PULL_DISTANCE = 150.0f;
-    const float MAX_SHOT_SPEED = 2400.0f;
 
     enum CircleType {
-        // cue_stick_ball,
         cue_ball,
         non_cue_ball,
         pocket
@@ -45,21 +44,11 @@
         Vector2 velocity;
 
         CircleType type;
+        int number = 0;
+        
         bool consumed = false;
-
-        bool enabled = true;
+        // bool enabled = true;
     };
-
-    // struct Spring {
-    //     Vector2 spring_start;
-    //     Vector2 spring_end;
-    //     float rest_length;
-    //     float max_length;
-    //     float b;
-    //     float k;
-    //     float width = 5.0f;
-    // };
-
 
     // List of Functions
     void initCircle(Circle &b);
@@ -80,15 +69,42 @@
         // initialize ball s
         for (int i = 0; i < BALL_COUNT; i++) {
             initCircle(balls[i]);
+
             balls[i].type = (i == 0) ? cue_ball : non_cue_ball;
-            balls[i].color = (i == 0) ? WHITE : BALL_COLOR;
+            balls[i].number = i;
+            if (i == 0)
+                balls[i].color = WHITE;
+            else if (i == 9)
+                balls[i].color = BLACK;
+            else
+                balls[i].color = BALL_COLOR;
         }
 
         balls[0].position = balls[0].default_position = {WINDOW_WIDTH / 4, WINDOW_HEIGHT / 2 };
-        balls[1].position = balls[1].default_position = {2.0f * (WINDOW_WIDTH / 3) - (balls[1].radius * 1.7f), WINDOW_HEIGHT / 2 };
-        balls[2].position = balls[2].default_position = {2.0f * (WINDOW_WIDTH / 3) + (balls[2].radius * 1.7f), WINDOW_HEIGHT / 2 };
-        balls[3].position = balls[3].default_position = {2.0f * (WINDOW_WIDTH / 3), (WINDOW_HEIGHT / 2) - (balls[3].radius * 1.3f)};
-        balls[4].position = balls[4].default_position = {2.0f * (WINDOW_WIDTH / 3), (WINDOW_HEIGHT / 2) + (balls[4].radius * 1.3f)};
+
+        float rackX = 2.0f * (WINDOW_WIDTH / 3);
+        float rackY = WINDOW_HEIGHT / 2;
+        float spacing = balls[1].radius * 2.05f;
+        
+        balls[1].position = balls[1].default_position = {rackX, rackY};
+        balls[2].position = balls[2].default_position = {rackX + spacing, rackY - spacing / 2};
+        balls[3].position = balls[3].default_position = {rackX + spacing, rackY + spacing / 2};
+        balls[4].position = balls[4].default_position = {rackX + spacing * 2, rackY - spacing};
+        balls[5].position = balls[5].default_position = {rackX + spacing * 2, rackY};
+        balls[6].position = balls[6].default_position = {rackX + spacing * 2, rackY + spacing};
+        balls[7].position = balls[7].default_position = {rackX + spacing * 3, rackY - spacing * 0.5f};
+        balls[8].position = balls[8].default_position = {rackX + spacing * 3, rackY + spacing * 0.5f};
+        balls[9].position = balls[9].default_position = {rackX + spacing * 4, rackY};
+
+        balls[1].color = YELLOW;
+        balls[2].color = BLUE;
+        balls[3].color = RED;
+        balls[4].color = VIOLET;
+        balls[5].color = ORANGE;
+        balls[6].color = LIME;
+        balls[7].color = BROWN;
+        balls[8].color = BLACK;
+        balls[9].color = GOLD;
 
         // initialize pockets
         for (int i = 0; i < POCKET_COUNT; i++) {
@@ -141,13 +157,9 @@
                 if (pullDistance > 0.0f)
                 {
                     Vector2 shotDirection = Vector2Normalize(pullVector);
-
                     float shotStrength = pullDistance / MAX_PULL_DISTANCE;
-
-                    float shotSpeed = shotStrength * MAX_SHOT_SPEED;
-
+                    float shotSpeed = shotStrength * MAX_SPEED;
                     balls[0].velocity = Vector2Add(balls[0].velocity,Vector2Scale(shotDirection,shotSpeed));
-
                     limitVelocity(balls[0]);
                 }
                 dragging = false;
@@ -191,27 +203,35 @@
             }
 
             BeginDrawing();
-            ClearBackground(TABLE_COLOR);
+            ClearBackground(RAIL_COLOR);
+            DrawRectangle(20,20,WINDOW_WIDTH - 40,WINDOW_HEIGHT - 40,TABLE_COLOR);
+
+            for (int i = 0; i < POCKET_COUNT; i++) {
+                DrawCircleV(pockets[i].position, pockets[i].radius + 3.0f, DARKBROWN);
+                DrawCircleV(pockets[i].position, pockets[i].radius, BLACK);
+            }
+            for (int i = 0; i < WALL_COUNT; i++) {
+                DrawRectangleRec(walls[i], RAIL_COLOR);
+            }
+
             if (canDrag && !dragging) {
                 DrawCircleV(balls[0].position, balls[0].radius + 10.0f, INDICATOR_COLOR);
                 DrawCircleV(balls[0].position, balls[0].radius + 5.0f, TABLE_COLOR);
             }
+            
             for (int i = 0; i < BALL_COUNT; i++) {
-                if (!balls[i].consumed)
-                    DrawCircleV(balls[i].position, balls[i].radius, balls[i].color);
-            }
-            for (int i = 0; i < POCKET_COUNT; i++) {
-                DrawCircleV(pockets[i].position, pockets[i].radius, pockets[i].color);
-            }
-            for (int i = 0; i < WALL_COUNT; i++) {
-                DrawRectangleRec(walls[i], WALL_COLOR);
+                if (balls[i].consumed)
+                    continue;
+
+                DrawCircleV(balls[i].position,balls[i].radius + 2.0f,BALL_OUTLINE_COLOR);
+                DrawCircleV(balls[i].position,balls[i].radius,balls[i].color);
+                DrawCircleV(balls[i].position,balls[i].radius * 0.42f,WHITE);
+
             }
 
             if (dragging) {
                 DrawLineEx(balls[0].position, GetMousePosition(), cueStickWidth, YELLOW);
             }
-
-
             EndDrawing();
         }
         CloseWindow();
@@ -329,7 +349,6 @@
         Vector2 q = {Clamp(p.x, min.x, max.x), Clamp(p.y, min.y, max.y)};
         Vector2 normal;
         float dist;
-
         Vector2 diff = Vector2Subtract(p, q);
         float distanceSqr = Vector2LengthSqr(diff);
 
@@ -337,7 +356,6 @@
         {
             dist = sqrtf(distanceSqr);
             normal = Vector2Scale(diff, 1.0f / dist);
-
             float pen = ball.radius - dist;
 
             if (pen <= 0.0f)
@@ -356,33 +374,25 @@
             float smallest = leftDistance;
             normal = {-1.0f, 0.0f};
 
-            if (rightDistance < smallest)
-            {
+            if (rightDistance < smallest){
                 smallest = rightDistance;
                 normal = {1.0f, 0.0f};
             }
-
-            if (topDistance < smallest)
-            {
+            if (topDistance < smallest){
                 smallest = topDistance;
                 normal = {0.0f, -1.0f};
             }
-
-            if (bottomDistance < smallest)
-            {
+            if (bottomDistance < smallest){
                 smallest = bottomDistance;
                 normal = {0.0f, 1.0f};
             }
 
             // displace by smallest
             float pen = ball.radius + smallest;
-
             ball.position = Vector2Add(ball.position, Vector2Scale(normal, pen));
         }
 
-
         float velnormal = Vector2DotProduct(ball.velocity, normal);
-
         if (velnormal >= 0.0f)
             return;
 
