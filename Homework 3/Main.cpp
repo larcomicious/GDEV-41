@@ -5,7 +5,7 @@
     const int WINDOW_WIDTH = 800;
     const int WINDOW_HEIGHT = 600;
     const float FPS = 60;
-    const float TIMESTEP = 1 / FPS; // Sets the timestep to 1 / FPS. But timestep can be any very small value.
+    const float TIMESTEP = 1 / 120.0f; // Sets the timestep to 1 / FPS. But timestep can be any very small value.
     const float FRICTION = 0.5;
     const int BALL_COUNT = 6;
     const int POCKET_COUNT = 4;
@@ -16,8 +16,8 @@
     bool canDrag = true;
     bool showGuide = false;
 
-    const float MAX_IMPULSE = 100;
     const float VELOCITY_TOLERANCE = 1.0f;
+    const float MAX_SPEED = 2400.0f;
 
     enum CircleType {
         cue_stick_ball,
@@ -63,6 +63,7 @@
     Vector2 RelVelA(Vector2 VelA, Vector2 VelB);
     Color GetRandomColor(void);
     bool CheckIfAllBallsStopped(Circle* balls);
+    void limitVelocity(Circle& ball);
 
     int main() {
 
@@ -199,6 +200,9 @@
             while(accumulator >= TIMESTEP) {       
                 for (int i = 0; i < BALL_COUNT; i++)
                 {
+                    if (balls[i].consumed)
+                        continue;
+
                     // Computes for velocity using v(t + dt) = v(t) + (a(t) * dt)
                     balls[i].velocity = Vector2Add(balls[i].velocity, Vector2Scale(balls[i].acceleration, TIMESTEP));
                     balls[i].velocity = Vector2Subtract(balls[i].velocity, Vector2Scale(balls[i].velocity, FRICTION * balls[i].inverse_mass * TIMESTEP));
@@ -211,6 +215,7 @@
                         if (i == j) continue;
 
                         circleCollision(balls[i], balls[j]);
+                        limitVelocity(balls[j]);
                     }
 
                     for(int j = 0; j < POCKET_COUNT; j++)
@@ -230,6 +235,7 @@
                     for(int j = 0; j < WALL_COUNT; j++) {
                         AABBIntersection(balls[i], walls[j]);
                     }
+                    limitVelocity(balls[i]);
                 }
 
                 balls[5].velocity = Vector2Add(balls[5].velocity, Vector2Scale(balls[5].acceleration, TIMESTEP));
@@ -308,6 +314,9 @@
         
         if (circleB.type == cue_stick_ball && (!circleB.enabled || (circleB.enabled && dragging)))
             return;
+        
+        if (circleA.consumed || circleB.consumed)
+        return;
 
         // pre-collision computations
         Vector2 collisionNorm = ColNorm(circleA.position, circleB.position);
@@ -329,7 +338,6 @@
                 float impulse_den = Vector2DotProduct(collisionNorm, collisionNorm) * (circleA.inverse_mass + circleB.inverse_mass);
 
                 float impulse = -(impulse_num / impulse_den);
-                impulse = Clamp(impulse, -MAX_IMPULSE, MAX_IMPULSE);
 
                 circleA.velocity = Vector2Add(circleA.velocity,
                                     Vector2Scale(collisionNorm, (impulse * circleA.inverse_mass))
@@ -369,43 +377,112 @@
         }
     }
 
-    void AABBIntersection(Circle& ball, Rectangle& wall) {
+    // void AABBIntersection(Circle& ball, Rectangle& wall) {
+    //     Vector2 min = {wall.x, wall.y};
+    //     Vector2 max = {wall.x + wall.width, wall.y + wall.height};
+    //     Vector2 p = ball.position;
+        
+    //     Vector2 q = {Clamp(p.x, min.x, max.x), Clamp(p.y, min.y, max.y)};
+
+    //     Vector2 normal = ColNorm(p, q);
+    //     Vector2 relVelA = RelVelA(ball.velocity, {0, 0});
+
+        
+    //     bool isOverlap = Vector2Distance(p, q) <= ball.radius;
+    //     bool isColliding = Vector2DotProduct(normal, relVelA) < 0;
+
+    //     if (isOverlap && isColliding) {
+    //             float impulse_num = (1 + ELASTICITY) * Vector2DotProduct(relVelA, normal);
+    //             float impulse_den = Vector2DotProduct(normal, normal) * (ball.inverse_mass + 0); // coz static?
+
+    //             float impulse = -(impulse_num / impulse_den);
+    //             impulse = Clamp(impulse, -MAX_IMPULSE, MAX_IMPULSE);
+
+    //             ball.velocity = Vector2Add(ball.velocity,
+    //                                 Vector2Scale(normal, (impulse * ball.inverse_mass))
+    //                                 );
+
+    //             // circleB.velocity = Vector2Subtract(circleB.velocity,
+    //             //                     Vector2Scale(collisionNorm, (impulse * circleB.inverse_mass))
+    //             //                     );
+                
+    //             // if (circleA.type == cue_stick_ball)
+    //             //     circleA.enabled = false;
+                
+    //             // if (circleB.type == cue_stick_ball)
+    //             //     circleB.enabled = false;
+    //         }
+
+    // } 
+
+    void AABBIntersection(Circle& ball, Rectangle& wall)
+    {
         Vector2 min = {wall.x, wall.y};
         Vector2 max = {wall.x + wall.width, wall.y + wall.height};
         Vector2 p = ball.position;
-        
+
         Vector2 q = {Clamp(p.x, min.x, max.x), Clamp(p.y, min.y, max.y)};
+        Vector2 normal;
+        float dist;
 
-        Vector2 normal = ColNorm(p, q);
-        Vector2 relVelA = RelVelA(ball.velocity, {0, 0});
+        Vector2 diff = Vector2Subtract(p, q);
+        float distanceSqr = Vector2LengthSqr(diff);
 
-        
-        bool isOverlap = Vector2Distance(p, q) <= ball.radius;
-        bool isColliding = Vector2DotProduct(normal, relVelA) < 0;
+        if (distanceSqr > 0.000001f)
+        {
+            dist = sqrtf(distanceSqr);
+            normal = Vector2Scale(diff, 1.0f / dist);
 
-        if (isOverlap && isColliding) {
-                float impulse_num = (1 + ELASTICITY) * Vector2DotProduct(relVelA, normal);
-                float impulse_den = Vector2DotProduct(normal, normal) * (ball.inverse_mass + 0); // coz static?
+            float pen = ball.radius - dist;
 
-                float impulse = -(impulse_num / impulse_den);
-                impulse = Clamp(impulse, -MAX_IMPULSE, MAX_IMPULSE);
+            if (pen <= 0.0f)
+                return;
 
-                ball.velocity = Vector2Add(ball.velocity,
-                                    Vector2Scale(normal, (impulse * ball.inverse_mass))
-                                    );
+            // push bol out of wol
+            ball.position = Vector2Add(ball.position, Vector2Scale(normal, pen));
+        }
+        else
+        {
+            float leftDistance = p.x - min.x;
+            float rightDistance = max.x - p.x;
+            float topDistance = p.y - min.y;
+            float bottomDistance = max.y - p.y;
 
-                // circleB.velocity = Vector2Subtract(circleB.velocity,
-                //                     Vector2Scale(collisionNorm, (impulse * circleB.inverse_mass))
-                //                     );
-                
-                // if (circleA.type == cue_stick_ball)
-                //     circleA.enabled = false;
-                
-                // if (circleB.type == cue_stick_ball)
-                //     circleB.enabled = false;
+            float smallest = leftDistance;
+            normal = {-1.0f, 0.0f};
+
+            if (rightDistance < smallest)
+            {
+                smallest = rightDistance;
+                normal = {1.0f, 0.0f};
             }
 
-    } 
+            if (topDistance < smallest)
+            {
+                smallest = topDistance;
+                normal = {0.0f, -1.0f};
+            }
+
+            if (bottomDistance < smallest)
+            {
+                smallest = bottomDistance;
+                normal = {0.0f, 1.0f};
+            }
+
+            // displace by smallest
+            float pen = ball.radius + smallest;
+
+            ball.position = Vector2Add(ball.position, Vector2Scale(normal, pen));
+        }
+
+
+        float velnormal = Vector2DotProduct(ball.velocity, normal);
+
+        if (velnormal >= 0.0f)
+            return;
+
+        ball.velocity = Vector2Subtract(ball.velocity,Vector2Scale(normal,(1.0f + ELASTICITY) * velnormal));
+    }
 
     bool CheckIfAllBallsStopped(Circle* balls) {
         for (int i = 0; i < BALL_COUNT; i++) {
@@ -417,6 +494,16 @@
             }
         }
         return true;
+    }
+
+    void limitVelocity(Circle& ball)
+    {
+        float speedSqr = Vector2LengthSqr(ball.velocity);
+
+        if (speedSqr > MAX_SPEED * MAX_SPEED)
+        {
+            ball.velocity = Vector2Scale(Vector2Normalize(ball.velocity), MAX_SPEED);
+        }
     }
 
     void resetGame(Circle* balls)
