@@ -2,8 +2,6 @@
 #include <raymath.h>
 #include <iostream>
 #include <vector>
-#include <unordered_set>
-#include <utility>
 #include <string>
 
 const int WINDOW_WIDTH = 1280;
@@ -11,30 +9,39 @@ const int WINDOW_HEIGHT = 720;
 const float FPS = 60;
 const float TIMESTEP = 1 / FPS; // Sets the timestep to 1 / FPS. But timestep can be any very small value.
 const float MAX_HALF_WIDTH = fmaxf(WINDOW_HEIGHT, WINDOW_WIDTH) / 2.0f;
-const int MAX_RECURSION_DEPTH = 4; 
+const int MAX_RECURSION_DEPTH = 4;
+int NODE_COUNT = 1;
 
 const float FRICTION = 0.0f;
 const float SPEED = 25.0f;
 int ELASTICITY = 1;
 
+struct Circle;
+
 struct QuadNode {
     Vector2 min;
     Vector2 max;
     float half_width;
-    QuadNode* parent; 
-    QuadNode* children[4]; 
-    std::vector<int> objects;
+    QuadNode *parent;
+    QuadNode *children[4];
+    std::vector<Circle *> objects;
+    std::string id;
+    bool active;
 
     QuadNode() {
         parent = nullptr;
-        for (QuadNode* child : children) {
-            child = nullptr;
+        for (int i = 0; i < 4; i++)
+        {
+            children[i] = nullptr;
         }
+        active = false;
     }
 
     ~QuadNode() {
-        for (QuadNode* child : children) {
-            if (child != nullptr) {
+        for (QuadNode *child : children)
+        {
+            if (child != nullptr)
+            {
                 delete child;
                 child = nullptr;
             }
@@ -49,33 +56,29 @@ struct Circle {
     float inverse_mass;
     Vector2 velocity;
     Color color;
-    std::vector<Vector2> occupied_cells; 
+    QuadNode *node;
 };
 
-
-float GetRandomFloat(float min, float max)
-{
+float getRandomFloat(float min, float max) {
     float scale = (float)GetRandomValue(0, 100) / 100.0f;
     return min + scale * (max - min);
 }
 
 void initCircle(Circle &c) {
     c.position = {WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f};
-    c.radius = GetRandomFloat(5.0f, 10.0f);
+    c.radius = getRandomFloat(5.0f, 10.0f);
     c.mass = 1.0f;
     c.inverse_mass = 1 / c.mass;
     c.color = {
-        (unsigned char)GetRandomValue(0,255),
-        (unsigned char)GetRandomValue(0,255),
-        (unsigned char)GetRandomValue(0,255),
-        255
-    };
-    c.velocity = Vector2Scale({GetRandomFloat(-10,10), GetRandomFloat(-10,10)}, SPEED);
-    c.occupied_cells = std::vector<Vector2> {};
+        (unsigned char)GetRandomValue(0, 255),
+        (unsigned char)GetRandomValue(0, 255),
+        (unsigned char)GetRandomValue(0, 255),
+        255};
+    c.velocity = Vector2Scale({getRandomFloat(-10, 10), getRandomFloat(-10, 10)}, SPEED);
+    c.node = nullptr;
 }
 
-void spawnCircle(std::vector<Circle> &circles, int num)
-{
+void spawnCircle(std::vector<Circle> &circles, int num) {
     for (int i = 0; i < num; i++) {
         Circle newCircle;
         initCircle(newCircle);
@@ -83,8 +86,7 @@ void spawnCircle(std::vector<Circle> &circles, int num)
     }
 }
 
-void spawnBigCircle(std::vector<Circle> &circles)
-{
+void spawnBigCircle(std::vector<Circle> &circles) {
     Circle newCircle;
     initCircle(newCircle);
     newCircle.radius = 25.0f;
@@ -94,7 +96,6 @@ void spawnBigCircle(std::vector<Circle> &circles)
 }
 
 void circleCollision(Circle &circleA, Circle &circleB) {
-
     // pre-collision computations
     Vector2 collisionNorm = Vector2Subtract(circleA.position, circleB.position);
     Vector2 relVelA = Vector2Subtract(circleA.velocity, circleB.velocity);
@@ -113,184 +114,257 @@ void circleCollision(Circle &circleA, Circle &circleB) {
         float impulse = -(impulse_num / impulse_den);
 
         circleA.velocity = Vector2Add(circleA.velocity,
-                            Vector2Scale(collisionNorm, (impulse * circleA.inverse_mass))
-                            );
+                                      Vector2Scale(collisionNorm, (impulse * circleA.inverse_mass)));
 
         circleB.velocity = Vector2Subtract(circleB.velocity,
-                            Vector2Scale(collisionNorm, (impulse * circleB.inverse_mass))
-                            );
+                                           Vector2Scale(collisionNorm, (impulse * circleB.inverse_mass)));
     }
 }
 
-void wallCollision(Circle &c)
-{
-    if(c.position.x + c.radius >= WINDOW_WIDTH || c.position.x - c.radius <= 0) {
+void wallCollision(Circle &c) {
+    if (c.position.x + c.radius >= WINDOW_WIDTH || c.position.x - c.radius <= 0) {
         c.velocity.x *= -1;
     }
-    
-    if(c.position.y + c.radius >= WINDOW_HEIGHT || c.position.y - c.radius <= 0) {
+
+    if (c.position.y + c.radius >= WINDOW_HEIGHT || c.position.y - c.radius <= 0) {
         c.velocity.y *= -1;
     }
 }
 
-QuadNode* generateChild(QuadNode& parent, int index, int depth) {
+QuadNode* generateChild(QuadNode& parent, int index, int depth = 0) {
     if (depth >= MAX_RECURSION_DEPTH)
         return nullptr;
 
-    float half_width = parent.half_width / 2.0f;
-
     QuadNode* child = new QuadNode();
-    child->half_width = half_width;
     child->parent = &parent;
 
-    float minX = parent.min.x;
-    float minY = parent.min.y;
-    float maxX = parent.max.x;
-    float maxY = parent.max.y;
+    // midpoint of parent
+    float midX = (parent.min.x + parent.max.x) / 2.0f;
+    float midY = (parent.min.y + parent.max.y) / 2.0f;
 
     switch (index) {
-        case 0: 
-            child->min = {minX, minY};
-            child->max = {minX + half_width, minY + half_width};
+        case 0:
+            child->min = parent.min;
+            child->max = {midX, midY};
             break;
-        case 1: 
-            child->min = {minX + half_width, minY};
-            child->max = {maxX, minY + half_width};
+        case 1:
+            child->min = {midX, parent.min.y};
+            child->max = {parent.max.x, midY};
             break;
-        case 2: 
-            child->min = {minX, minY + half_width};
-            child->max = {minX + half_width, maxY};
+        case 2:
+            child->min = {parent.min.x, midY};
+            child->max = {midX, parent.max.y};
             break;
-        case 3: 
-            child->min = {minX + half_width, minY + half_width};
-            child->max = {maxX, maxY};
+        case 3:
+            child->min = {midX, midY};
+            child->max = parent.max;
             break;
-        default:
-            delete child;
-            return nullptr;
     }
+
+    child->half_width = (child->max.x - child->min.x) / 2.0f;
+
+    child->id = std::to_string(depth) + std::to_string(index);
+    NODE_COUNT++;
 
     for (int i = 0; i < 4; i++) {
         child->children[i] = generateChild(*child, i, depth + 1);
     }
 
-    // std::cout << "child " << index << " depth " << depth << std::endl;
-
     return child;
 }
 
-// void generateQuadTree(QuadNode (&arr)[85]) {
 
-// }
-
-void generateQuadTree(QuadNode& parent, int depth) {
-
-}
-    
-
-
-int main() {
-    std::vector<Circle> circles;
-
-    QuadNode root;
+void generateQuadTree(QuadNode &root) {
     Vector2 center = {WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0F};
     root.min = {center.x - MAX_HALF_WIDTH, center.y - MAX_HALF_WIDTH};
     root.max = {center.x + MAX_HALF_WIDTH, center.y + MAX_HALF_WIDTH};
     root.half_width = MAX_HALF_WIDTH;
-
-    // generateQuadTree(root, 0);
-    root.children[0] = generateChild(root, 0, 0);
-    std::cout << "done generating children" << std::endl;
-
-
-    std::cout << "children of ";
-    std::cout << "child 0 " << root.children[0] << std::endl; 
+    root.id = "R";
 
     for (int i = 0; i < 4; i++) {
-        std::cout << "child " << i << " " << root.children[0]->children[i] << std::endl;
+        root.children[i] = generateChild(root, i);
     }
-    // int space_count = 0;
-    // GridCell grid[GRID_ROWS][GRID_COLS];
+}
 
-    // generateGrid(grid);
-    // bool showGrid = false;
+bool canFitObject(Circle *circle, QuadNode *child_node) {
+    if (child_node == nullptr)
+        return false;
 
-    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Exercise 5 - Gimena & Tan");
+    Vector2 min = child_node->min;
+    Vector2 max = child_node->max;
+
+    Vector2 circleMin = {circle->position.x - circle->radius, circle->position.y - circle->radius};
+    Vector2 circleMax = {circle->position.x + circle->radius, circle->position.y + circle->radius};
+
+    return (circleMin.x >= min.x && circleMax.x <= max.x && circleMin.y >= min.y && circleMax.y <= max.y);
+}
+
+// void insertObject(Circle* circle, QuadNode* cur_node, int depth = 0) {
+//     if (depth >= MAX_RECURSION_DEPTH)
+//         return;
+
+//     circle->node = cur_node;
+//     cur_node->objects.push_back(circle - &circle[0]);
+//     cur_node->active = true;
+
+//     for (int i = 0; i < 4; i++) {
+//         QuadNode* child_node = cur_node->children[i];
+//         if (canFitObject(circle, child_node)) {
+//             insertObject(circle, child_node, depth + 1);
+//             // std::cout << "inserted at depth " << depth + 1 << std::endl;
+//             return;
+//         }
+//     }
+// }
+
+void insertObject(Circle *circle, QuadNode *cur_node, int depth = 0) {
+    if (depth >= MAX_RECURSION_DEPTH) {
+        circle->node = cur_node;
+        cur_node->objects.push_back(circle);
+        cur_node->active = true;
+        return;
+    }
+
+    for (int i = 0; i < 4; i++) {
+        QuadNode *child_node = cur_node->children[i];
+
+        if (child_node != nullptr && canFitObject(circle, child_node)) {
+            insertObject(circle, child_node, depth + 1);
+            return;
+        }
+    }
+
+    circle->node = cur_node;
+    cur_node->objects.push_back(circle);
+    cur_node->active = true;
+}
+
+void clearQuadNodeObjects(QuadNode &node) {
+    node.objects.clear();
+    node.active = false;
+    for (QuadNode *child : node.children) {
+        if (child != nullptr) {
+            clearQuadNodeObjects(*child);
+        }
+    }
+}
+
+void printObjectsInQuadNode(const QuadNode &node) {
+    if (node.active) {
+        std::cout << "Node ID: " << node.id << ", Objects: ";
+        for (Circle *obj : node.objects) {
+            std::cout << obj << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    for (const QuadNode *child : node.children) {
+        if (child != nullptr) 
+            printObjectsInQuadNode(*child);
+    }
+}
+
+int main() {
+    std::vector<Circle> circles;
+    int space_count = 0;
+
+    QuadNode root;
+
+    generateQuadTree(root);
+
+    std::cout << "node count " << NODE_COUNT << std::endl;
+
+    // CloseWindow();
+
+    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "HW 4 - Gimena & Tan");
     SetTargetFPS(FPS);
 
-    // float accumulator = 0;
+    float accumulator = 0;
 
-    // // checker for comparison in between two or more cells
-    // std::unordered_set<int> seenBalls;
+    // checker for comparison in between two or more cells
 
     while (!WindowShouldClose()) {
-    //     float delta_time = GetFrameTime();
-    //     Vector2 forces = Vector2Zero();
+        float delta_time = GetFrameTime();
 
-    //     // if(IsKeyPressed(KEY_SPACE)) {
-    //     //     if (space_count % 10 == 0 && space_count != 0)
-    //     //         spawnBigCircle(circles);
-    //     //     else
-    //     //         spawnCircle(circles, 25);
-            
-    //     //     space_count++;
-    //     // }
+        if (IsKeyPressed(KEY_SPACE)) {
+            if (space_count % 10 == 0 && space_count != 0)
+                spawnBigCircle(circles);
+            else
+                spawnCircle(circles, 1);
 
-    //     // if(IsKeyPressed(KEY_G)) {
-    //     //     showGrid = (showGrid) ? false : true;
-    //     // }
+            space_count++;
+        }
+
+        // clearGridCells(grid);
+
+        // PHYSICS
+        accumulator += delta_time;
+        while (accumulator >= TIMESTEP) {
+            clearQuadNodeObjects(root);
+
+            for (int i = 0; i < circles.size(); i++) {
+                circles[i].velocity = Vector2Subtract(circles[i].velocity, Vector2Scale(circles[i].velocity, FRICTION * circles[i].inverse_mass * TIMESTEP));
+                circles[i].position = Vector2Add(circles[i].position, Vector2Scale(circles[i].velocity, TIMESTEP));
+
+                int circle_index = &circles[i] - &circles[0];
+               
+                // insert circle
+
+                insertObject(&circles[circle_index], &root);
 
         
-    //     // clearGridCells(grid);
 
+                // reassign grid cells
+                // seenBalls.clear();
+                // reassignGridCells(circles[i], circle_index, grid);
 
-    //     // PHYSICS
-    //     accumulator += delta_time;
-    //     while(accumulator >= TIMESTEP) {       
-    //         for (int i = 0; i < circles.size(); i++)
-    //         {
-    //             circles[i].velocity = Vector2Subtract(circles[i].velocity, Vector2Scale(circles[i].velocity, FRICTION * circles[i].inverse_mass * TIMESTEP));
-    //             circles[i].position = Vector2Add(circles[i].position, Vector2Scale(circles[i].velocity, TIMESTEP));
+                // for (int j = 0; j < circles[i].occupiedCells.size(); j++) {
+                //     Vector2 gridCoords = circles[i].occupiedCells[j];
 
-    //             int circle_index = &circles[i] - &circles[0];
-                
-    //             // reassign grid cells
-    //             seenBalls.clear();
-    //             reassignGridCells(circles[i], circle_index, grid);
-                
-    //             for (int j = 0; j < circles[i].occupiedCells.size(); j++) {
-    //                 Vector2 gridCoords = circles[i].occupiedCells[j];
+                //     GridCell &cur_grid = grid[static_cast<int>(gridCoords.y)][static_cast<int>(gridCoords.x)];
 
-    //                 GridCell &cur_grid = grid[static_cast<int>(gridCoords.y)][static_cast<int>(gridCoords.x)];
+                //     for (int k = 0; k < cur_grid.objects.size(); k++) {
+                //         int idx = cur_grid.objects[k];
 
-    //                 for (int k = 0; k < cur_grid.objects.size(); k++) {
-    //                     int idx = cur_grid.objects[k];
-                        
-    //                     if (i == idx) continue;                        
-    //                     if (seenBalls.find(idx) != seenBalls.end()) continue; 
+                //         if (i == idx) continue;
+                //         if (seenBalls.find(idx) != seenBalls.end()) continue;
 
-    //                     circleCollision(circles[i], circles[idx]);
-    //                     seenBalls.insert(idx);
-    //                 }
+                //         circleCollision(circles[i], circles[idx]);
+                //         seenBalls.insert(idx);
+                //     }
 
-    //             }
+                // }
 
-    //             wallCollision(circles[i]);
-    //         }
-    //         accumulator -= TIMESTEP; 
-        // }
+                for (int j = 0; j < circles.size(); j++) {
+                    if (i == j)
+                        continue;
+                    circleCollision(circles[i], circles[j]);
+                }
 
-    // BeginDrawing();
-    // ClearBackground(WHITE);
-        // for (int i = 0; i < circles.size(); i++) {
-        //     DrawCircleV(circles[i].position, circles[i].radius, circles[i].color);
-        // }
+                wallCollision(circles[i]);
+            }
+
+            printObjectsInQuadNode(root);
+            accumulator -= TIMESTEP;
+        }
+
+        BeginDrawing();
+        ClearBackground(WHITE);
+        for (int i = 0; i < circles.size(); i++) {
+            DrawCircleV(circles[i].position, circles[i].radius, circles[i].color);
+        }
         // std::string space_label = "Space Pressed: " + std::to_string(space_count);
-        // std::string circle_count = "Circles: " + std::to_string(circles.size());
+        std::string circle_count = "Circles: " + std::to_string(circles.size());
         // std::string grid_instruction = "Press G to toggle grid";
         // DrawText(space_label.c_str(), 10, 10, 24, DARKGRAY);
-        // DrawText(circle_count.c_str(), 10, 40, 24, DARKGRAY);
+        DrawText(circle_count.c_str(), 10, 40, 24, DARKGRAY);
         // DrawText(grid_instruction.c_str(), 10, 70, 24, DARKGRAY);
+
+
+        // draw quad tree
+
+
+
 
         // // Bonus Stuffs
         // // draw columns
@@ -305,22 +379,22 @@ int main() {
         //     {
         //         // draw rows
         //         DrawLine(0, row * CELL_SIZE, WINDOW_WIDTH, row * CELL_SIZE, LIGHTGRAY);
-                
+
         //         // draw labels
         //         for (int col = 0; col < GRID_COLS; ++col)
         //         {
         //             std::string cell_label = "(" + std::to_string(col) + "," + std::to_string(row) + ")";
         //             DrawText(cell_label.c_str(), grid[row][col].position.x + 2, grid[row][col].position.y + 3, 12, DARKGRAY);
-                
+
         //             std::string occupants = std::to_string(grid[row][col].objects.size());
-                    
+
         //             Color occupants_color = (grid[row][col].objects.size() > 1) ? GREEN : RED;
         //             DrawText(occupants.c_str(), grid[row][col].position.x + (CELL_SIZE / 2) - 8, grid[row][col].position.y + (CELL_SIZE / 2) - 10, 24, occupants_color);
         //         }
         //     }
         // }
 
-        // EndDrawing();
+        EndDrawing();
     }
     CloseWindow();
     return 0;
