@@ -72,7 +72,7 @@ float getRandomFloat(float min, float max) {
     return min + scale * (max - min);
 }
 
-void initCircle(Circle &c) {
+void initCircle(Circle &c, QuadNode* root) {
     c.position = {WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f};
     c.radius = getRandomFloat(5.0f, 10.0f);
     // c.radius = 50.0f;
@@ -84,7 +84,7 @@ void initCircle(Circle &c) {
         (unsigned char)GetRandomValue(0, 255),
         255};
     c.velocity = Vector2Scale({getRandomFloat(-10, 10), getRandomFloat(-10, 10)}, SPEED);
-    c.node = nullptr;
+    c.node = root;
 }
 
 void spawnCircle(std::vector<Circle> &circles, int num) {
@@ -354,17 +354,23 @@ int main() {
         if (!PAUSED) {
             accumulator += delta_time;
             while (accumulator >= TIMESTEP) {
-                clearQuadNodeObjects(root);
+                clearQuadNodeObjects(root); // TODO: refactor!!!
 
                 for (int i = 0; i < circles.size(); i++) {
                     circles[i].velocity = Vector2Subtract(circles[i].velocity, Vector2Scale(circles[i].velocity, FRICTION * circles[i].inverse_mass * TIMESTEP));
                     circles[i].position = Vector2Add(circles[i].position, Vector2Scale(circles[i].velocity, TIMESTEP));
 
                     int circle_index = &circles[i] - &circles[0];
-                
-                    // insert circle
-                    insertObject(&circles[circle_index], &root);
-                    // printObjectsInQuadNode(root);
+                    
+                    // TODO:
+                    // check if ball can still be contained within current node
+                        // if yes, check if can be in its children (use/change canFitObject() method for this :3)
+                        // if no, go up to parent
+                            // after going up to parent, check again if can fit in other children of parent
+
+                    // then insert circle:
+                    insertObject(&circles[circle_index], &root); // TODO: change this!!!
+                    
                     // get candidate objects
                     // std::cout << "candidates for " << &circles[circle_index] << ": ";
                     std::vector<Circle*> candidate_objects = queryCandidateObjects(circles[circle_index]);
@@ -425,7 +431,7 @@ int main() {
         // DrawText(grid_instruction.c_str(), 10, 70, 24, DARKGRAY);
 
         if (PAUSED)
-            DrawText("PAUSE", 10, 70, 24, DARKGRAY);
+            DrawText("PAUSED", 10, 70, 24, DARKGRAY);
             
         // draw quad tree
         drawActiveNodes(&root);
