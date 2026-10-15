@@ -87,17 +87,17 @@ void initCircle(Circle &c, QuadNode* root) {
     c.node = root;
 }
 
-void spawnCircle(std::vector<Circle> &circles, int num) {
+void spawnCircle(std::vector<Circle> &circles, int num, QuadNode* node) {
     for (int i = 0; i < num; i++) {
         Circle newCircle;
-        initCircle(newCircle);
+        initCircle(newCircle, node);
         circles.push_back(newCircle);
     }
 }
 
-void spawnBigCircle(std::vector<Circle> &circles) {
+void spawnBigCircle(std::vector<Circle> &circles, QuadNode* node) {
     Circle newCircle;
-    initCircle(newCircle);
+    initCircle(newCircle, node);
     newCircle.radius = 25.0f;
     newCircle.mass = 10.0f;
     newCircle.inverse_mass = 1 / newCircle.mass;
@@ -339,11 +339,11 @@ int main() {
 
         if (IsKeyPressed(KEY_SPACE)) {
             if (space_count % 10 == 0 && space_count != 0) {
-                spawnBigCircle(circles);
+                spawnBigCircle(circles, &root);
                 space_count = -1;
             }
             else 
-                spawnCircle(circles, 25);
+                spawnCircle(circles, 25, &root);
 
             space_count++;
         }
