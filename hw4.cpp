@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <algorithm>
 
 const int WINDOW_WIDTH = 1280;
 const int WINDOW_HEIGHT = 720;
@@ -209,26 +210,39 @@ bool canFitObject(Circle* circle, QuadNode* child_node) {
     return (circleMin.x >= min.x && circleMax.x <= max.x && circleMin.y >= min.y && circleMax.y <= max.y);
 }
 
-void insertObject(Circle *circle, QuadNode *cur_node, int depth = 0) {
-    if (depth >= MAX_RECURSION_DEPTH) {
-        circle->node = cur_node;
-        cur_node->objects.push_back(circle);
-        cur_node->active = true;
-        return;
-    }
+// void insertObject(Circle *circle, QuadNode *cur_node, int depth = 0) {
+//     if (depth >= MAX_RECURSION_DEPTH) {
+//         circle->node = cur_node;
+//         cur_node->objects.push_back(circle);
+//         cur_node->active = true;
+//         return;
+//     }
+
+//     for (int i = 0; i < 4; i++) {
+//         QuadNode *child_node = cur_node->children[i];
+
+//         if (child_node != nullptr && canFitObject(circle, child_node)) {
+//             insertObject(circle, child_node, depth + 1);
+//             return;
+//         }
+//     }
+
+//     circle->node = cur_node;
+//     cur_node->objects.push_back(circle);
+//     cur_node->active = true;
+// }
+
+QuadNode* findNode(Circle* circle, QuadNode* cur_node, int depth = 0) {
+    if (depth >= MAX_RECURSION_DEPTH)
+        return cur_node;
 
     for (int i = 0; i < 4; i++) {
-        QuadNode *child_node = cur_node->children[i];
-
-        if (child_node != nullptr && canFitObject(circle, child_node)) {
-            insertObject(circle, child_node, depth + 1);
-            return;
-        }
+        QuadNode* child_node = cur_node->children[i];
+        if (child_node != nullptr && canFitObject(circle, child_node))
+            return findNode(circle, child_node, depth + 1);
     }
 
-    circle->node = cur_node;
-    cur_node->objects.push_back(circle);
-    cur_node->active = true;
+    return cur_node;
 }
 
 void clearQuadNodeObjects(QuadNode &node) {
@@ -346,6 +360,9 @@ int main() {
                 spawnCircle(circles, 25, &root);
 
             space_count++;
+
+            // alternatively allocate just a big chunk of memory for circles
+            clearQuadNodeObjects(root);
         }
         if (IsKeyPressed(KEY_ENTER)) 
             PAUSED = !PAUSED;
@@ -354,22 +371,55 @@ int main() {
         if (!PAUSED) {
             accumulator += delta_time;
             while (accumulator >= TIMESTEP) {
-                clearQuadNodeObjects(root); // TODO: refactor!!!
+                // clearQuadNodeObjects(root); // TODO: remove
 
                 for (int i = 0; i < circles.size(); i++) {
                     circles[i].velocity = Vector2Subtract(circles[i].velocity, Vector2Scale(circles[i].velocity, FRICTION * circles[i].inverse_mass * TIMESTEP));
                     circles[i].position = Vector2Add(circles[i].position, Vector2Scale(circles[i].velocity, TIMESTEP));
 
                     int circle_index = &circles[i] - &circles[0];
+
+                    QuadNode* old_node = circles[circle_index].node;
+                    QuadNode* start_node = old_node;
+
+                    // check if ball can still be contained within current node
+                    while (start_node->parent != nullptr && !canFitObject(&circles[circle_index], start_node)) {
+                        start_node = start_node->parent;
+                    }
+
+                    // if yes, check if can be in its children
+                    QuadNode* new_node = findNode(&circles[circle_index], start_node);
+
+                    // find iterator for the index on where the circle lies (ty geeksforgeeks) return end if not in the range
+                    auto it = std::find(old_node->objects.begin(), old_node->objects.end(), &circles[circle_index]);
+
+                    // circle moved to a diff node
+                    if (new_node != old_node) {
+                        if (it != old_node->objects.end())
+                            old_node->objects.erase(it);
+                            // the circle left the vector so erase it using iterator
+
+                        old_node->active = !old_node->objects.empty();
+
+                        new_node->objects.push_back(&circles[circle_index]);
+                        new_node->active = true;
+                        circles[circle_index].node = new_node;
+                    }
+                    else if (it == old_node->objects.end()) {
+                        // the circle was not in the range of old node so this is new circle, pushback
+                        new_node->objects.push_back(&circles[circle_index]);
+                        new_node->active = true;
+                    }
+
                     
-                    // TODO:
+                    // TODO: (done look up)
                     // check if ball can still be contained within current node
                         // if yes, check if can be in its children (use/change canFitObject() method for this :3)
                         // if no, go up to parent
                             // after going up to parent, check again if can fit in other children of parent
 
                     // then insert circle:
-                    insertObject(&circles[circle_index], &root); // TODO: change this!!!
+                    // insertObject(&circles[circle_index], &root); // TODO: remove
                     
                     // get candidate objects
                     // std::cout << "candidates for " << &circles[circle_index] << ": ";
