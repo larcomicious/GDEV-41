@@ -73,35 +73,35 @@ float getRandomFloat(float min, float max) {
     return min + scale * (max - min);
 }
 
-void initCircle(Circle &c, QuadNode* root) {
-    c.position = {WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f};
-    c.radius = getRandomFloat(5.0f, 10.0f);
+void initCircle(Circle* c, QuadNode* root) {
+    c->position = {WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f};
+    c->radius = getRandomFloat(5.0f, 10.0f);
     // c.radius = 50.0f;
-    c.mass = 1.0f;
-    c.inverse_mass = 1 / c.mass;
-    c.color = {
+    c->mass = 1.0f;
+    c->inverse_mass = 1 / c->mass;
+    c->color = {
         (unsigned char)GetRandomValue(0, 255),
         (unsigned char)GetRandomValue(0, 255),
         (unsigned char)GetRandomValue(0, 255),
         255};
-    c.velocity = Vector2Scale({getRandomFloat(-10, 10), getRandomFloat(-10, 10)}, SPEED);
-    c.node = root;
+    c->velocity = Vector2Scale({getRandomFloat(-10, 10), getRandomFloat(-10, 10)}, SPEED);
+    c->node = root;
 }
 
-void spawnCircle(std::vector<Circle> &circles, int num, QuadNode* node) {
+void spawnCircle(std::vector<Circle*> &circles, int num, QuadNode* node) {
     for (int i = 0; i < num; i++) {
-        Circle newCircle;
+        Circle* newCircle = new Circle();
         initCircle(newCircle, node);
         circles.push_back(newCircle);
     }
 }
 
-void spawnBigCircle(std::vector<Circle> &circles, QuadNode* node) {
-    Circle newCircle;
+void spawnBigCircle(std::vector<Circle*> &circles, QuadNode* node) {
+    Circle* newCircle = new Circle();
     initCircle(newCircle, node);
-    newCircle.radius = 25.0f;
-    newCircle.mass = 10.0f;
-    newCircle.inverse_mass = 1 / newCircle.mass;
+    newCircle->radius = 25.0f;
+    newCircle->mass = 10.0f;
+    newCircle->inverse_mass = 1 / newCircle->mass;
     circles.push_back(newCircle);
 }
 
@@ -210,28 +210,6 @@ bool canFitObject(Circle* circle, QuadNode* child_node) {
     return (circleMin.x >= min.x && circleMax.x <= max.x && circleMin.y >= min.y && circleMax.y <= max.y);
 }
 
-// void insertObject(Circle *circle, QuadNode *cur_node, int depth = 0) {
-//     if (depth >= MAX_RECURSION_DEPTH) {
-//         circle->node = cur_node;
-//         cur_node->objects.push_back(circle);
-//         cur_node->active = true;
-//         return;
-//     }
-
-//     for (int i = 0; i < 4; i++) {
-//         QuadNode *child_node = cur_node->children[i];
-
-//         if (child_node != nullptr && canFitObject(circle, child_node)) {
-//             insertObject(circle, child_node, depth + 1);
-//             return;
-//         }
-//     }
-
-//     circle->node = cur_node;
-//     cur_node->objects.push_back(circle);
-//     cur_node->active = true;
-// }
-
 QuadNode* findNode(Circle* circle, QuadNode* cur_node, int depth = 0) {
     if (depth >= MAX_RECURSION_DEPTH)
         return cur_node;
@@ -255,43 +233,35 @@ void clearQuadNodeObjects(QuadNode &node) {
     }
 }
 
-void getAncestors(QuadNode* node, std::vector<QuadNode*>& ancestors) {
+void collideWithAncestorObjects(QuadNode* node, Circle* cur_circle) {
     if (node == nullptr) return;
 
-    ancestors.push_back(node);
-    getAncestors(node->parent, ancestors);
+    for (Circle* obj : node->objects) {
+        circleCollision(*cur_circle, *obj);
+    }
+
+    collideWithAncestorObjects(node->parent, cur_circle);
 }
 
-void getDescendants(QuadNode* node, std::vector<QuadNode*>& descendants) {
+void collideWithDescendantObjects(QuadNode* node, Circle* cur_circle) {
     if (node == nullptr) return;
 
     for (QuadNode* child : node->children) {
         if (child == nullptr) return;
-        // std::cout << child->id << std::endl;
-        descendants.push_back(child);
-        getDescendants(child, descendants);
+        for (Circle* obj : child->objects) {
+            circleCollision(*cur_circle, *obj);
+        }
+        collideWithDescendantObjects(child, cur_circle);
     }
 }
 
-std::vector<Circle*> queryCandidateObjects(Circle& cur_circle) {
-    std::vector<QuadNode*> nodes;
-    std::vector<Circle*> canditates;
+void handleCollisionWithQueryCandidates(Circle* cur_circle) {
+    // collide with ancestors
+    QuadNode* cur_node = cur_circle->node;
     
-    QuadNode* cur_node = cur_circle.node;
-    // get all relevant nodes
-    getAncestors(cur_node, nodes);
-    
-    getDescendants(cur_node, nodes);
-    
-    // std::cout << "candidates: ";
-    // get all objects from nodes
-    for (QuadNode* node: nodes) {
-        for (Circle* obj : node->objects) {
-            canditates.push_back(obj);
-        }
-    }
+    collideWithAncestorObjects(cur_node, cur_circle);
+    collideWithDescendantObjects(cur_node, cur_circle);
 
-    return canditates;
 }
 
 // debuger helper
@@ -330,7 +300,7 @@ void drawActiveNodes(QuadNode* node) {
 }
 
 int main() {
-    std::vector<Circle> circles;
+    std::vector<Circle*> circles;
     int space_count = 0;
 
     QuadNode root;
@@ -339,14 +309,10 @@ int main() {
 
     std::cout << "node count " << NODE_COUNT << std::endl;
 
-    // CloseWindow();
-
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "HW 4 - Gimena & Tan");
     SetTargetFPS(FPS);
 
     float accumulator = 0;
-
-    // checker for comparison in between two or more cells
 
     while (!WindowShouldClose()) {
         float delta_time = GetFrameTime();
@@ -358,11 +324,9 @@ int main() {
             }
             else 
                 spawnCircle(circles, 25, &root);
-
+            
             space_count++;
 
-            // alternatively allocate just a big chunk of memory for circles
-            clearQuadNodeObjects(root);
         }
         if (IsKeyPressed(KEY_ENTER)) 
             PAUSED = !PAUSED;
@@ -371,45 +335,45 @@ int main() {
         if (!PAUSED) {
             accumulator += delta_time;
             while (accumulator >= TIMESTEP) {
-                // clearQuadNodeObjects(root); // TODO: remove
-
+                
                 for (int i = 0; i < circles.size(); i++) {
-                    circles[i].velocity = Vector2Subtract(circles[i].velocity, Vector2Scale(circles[i].velocity, FRICTION * circles[i].inverse_mass * TIMESTEP));
-                    circles[i].position = Vector2Add(circles[i].position, Vector2Scale(circles[i].velocity, TIMESTEP));
+                    circles[i]->velocity = Vector2Subtract(circles[i]->velocity, Vector2Scale(circles[i]->velocity, FRICTION * circles[i]->inverse_mass * TIMESTEP));
+                    circles[i]->position = Vector2Add(circles[i]->position, Vector2Scale(circles[i]->velocity, TIMESTEP));
 
                     int circle_index = &circles[i] - &circles[0];
 
-                    QuadNode* old_node = circles[circle_index].node;
+                    QuadNode* old_node = circles[circle_index]->node;
                     QuadNode* start_node = old_node;
 
                     // check if ball can still be contained within current node
-                    while (start_node->parent != nullptr && !canFitObject(&circles[circle_index], start_node)) {
+                    while (start_node->parent != nullptr && !canFitObject(circles[circle_index], start_node)) {
                         start_node = start_node->parent;
                     }
 
                     // if yes, check if can be in its children
-                    QuadNode* new_node = findNode(&circles[circle_index], start_node);
+                    QuadNode* new_node = findNode(circles[circle_index], start_node);
 
                     // find iterator for the index on where the circle lies (ty geeksforgeeks) return end if not in the range
-                    auto it = std::find(old_node->objects.begin(), old_node->objects.end(), &circles[circle_index]);
+                    auto it = std::find(old_node->objects.begin(), old_node->objects.end(), circles[circle_index]);
 
                     // circle moved to a diff node
                     if (new_node != old_node) {
-                        if (it != old_node->objects.end())
+                        if (it != old_node->objects.end()) {
                             old_node->objects.erase(it);
+                        }
                             // the circle left the vector so erase it using iterator
 
                         old_node->active = !old_node->objects.empty();
 
-                        new_node->objects.push_back(&circles[circle_index]);
+                        new_node->objects.push_back(circles[circle_index]);
                         new_node->active = true;
-                        circles[circle_index].node = new_node;
+                        circles[circle_index]->node = new_node;
                     }
-                    else if (it == old_node->objects.end()) {
-                        // the circle was not in the range of old node so this is new circle, pushback
-                        new_node->objects.push_back(&circles[circle_index]);
-                        new_node->active = true;
-                    }
+                    // else if (it == old_node->objects.end()) {
+                    //     // the circle was not in the range of old node so this is new circle, pushback
+                    //     new_node->objects.push_back(&circles[circle_index]);
+                    //     new_node->active = true;
+                    // }
 
                     
                     // TODO: (done look up)
@@ -422,47 +386,18 @@ int main() {
                     // insertObject(&circles[circle_index], &root); // TODO: remove
                     
                     // get candidate objects
-                    // std::cout << "candidates for " << &circles[circle_index] << ": ";
-                    std::vector<Circle*> candidate_objects = queryCandidateObjects(circles[circle_index]);
-                    for (int j = 0; j < candidate_objects.size(); j++) {
-                        // std::cout << candidate_objects[j] << " ";
-                        if (&circles[i] == candidate_objects[j]) continue;
+                    // std::vector<Circle*> candidate_objects = queryCandidateObjects(circles[circle_index]);
+                    // for (int j = 0; j < candidate_objects.size(); j++) {
+                    //     if (circles[i] == candidate_objects[j]) continue;
 
-                        circleCollision(circles[i], *candidate_objects[j]);
-                    }
-                    // std::cout << std::endl;
-                    
-                    // reassign grid cells
-                    // seenBalls.clear();
-                    // reassignGridCells(circles[i], circle_index, grid);
-
-                    // for (int j = 0; j < circles[i].occupiedCells.size(); j++) {
-                    //     Vector2 gridCoords = circles[i].occupiedCells[j];
-
-                    //     GridCell &cur_grid = grid[static_cast<int>(gridCoords.y)][static_cast<int>(gridCoords.x)];
-
-                    //     for (int k = 0; k < cur_grid.objects.size(); k++) {
-                    //         int idx = cur_grid.objects[k];
-
-                    //         if (i == idx) continue;
-                    //         if (seenBalls.find(idx) != seenBalls.end()) continue;
-
-                    //         circleCollision(circles[i], circles[idx]);
-                    //         seenBalls.insert(idx);
-                    //     }
-
+                    //     circleCollision(*circles[i], *candidate_objects[j]);
                     // }
 
-                    // for (int j = 0; j < circles.size(); j++) {
-                    //     if (i == j)
-                    //         continue;
-                    //     circleCollision(circles[i], circles[j]);
-                    // }
+                    handleCollisionWithQueryCandidates(circles[circle_index]);
 
-                    wallCollision(circles[i]);
+                    wallCollision(*circles[i]);
                 }
 
-                // printObjectsInQuadNode(root);
                 accumulator -= TIMESTEP;
             }
 
@@ -471,7 +406,7 @@ int main() {
         BeginDrawing();
         ClearBackground(WHITE);
         for (int i = 0; i < circles.size(); i++) {
-            DrawCircleV(circles[i].position, circles[i].radius, circles[i].color);
+            DrawCircleV(circles[i]->position, circles[i]->radius, circles[i]->color);
         }
         // std::string space_label = "Space Pressed: " + std::to_string(space_count);
         std::string circle_count = "Circles: " + std::to_string(circles.size());
@@ -485,6 +420,8 @@ int main() {
             
         // draw quad tree
         drawActiveNodes(&root);
+
+        DrawText(std::to_string(GetFPS()).c_str(), 10, 10, 24, RED);
         
 
         // // Bonus Stuffs
