@@ -13,7 +13,6 @@ bool PAUSED = false;
 
 const float MAX_HALF_WIDTH = fmaxf(WINDOW_HEIGHT, WINDOW_WIDTH) / 2.0f;
 const int MAX_RECURSION_DEPTH = 4;
-int NODE_COUNT = 1;
 
 const float FRICTION = 0.0f;
 const float SPEED = 25.0f;
@@ -47,15 +46,6 @@ struct QuadNode {
         }
         active = false;
     }
-
-    // ~QuadNode() {
-    //     for (QuadNode* child : children) {
-    //         if (child != nullptr) {
-    //             delete child;
-    //             child = nullptr;
-    //         }
-    //     }
-    // };
 };
 
 struct Circle {
@@ -76,7 +66,6 @@ float getRandomFloat(float min, float max) {
 void initCircle(Circle* c, QuadNode* root) {
     c->position = {WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f};
     c->radius = getRandomFloat(5.0f, 10.0f);
-    // c.radius = 50.0f;
     c->mass = 1.0f;
     c->inverse_mass = 1 / c->mass;
     c->color = {
@@ -174,7 +163,6 @@ QuadNode* generateChild(QuadNode& parent, int index, int depth = 0) {
     child->half_width = (child->max.x - child->min.x) / 2.0f;
 
     child->id = parent.id + std::to_string(index);
-    NODE_COUNT++;
 
     for (int i = 0; i < 4; i++) {
         child->children[i] = generateChild(*child, i, depth + 1);
@@ -256,37 +244,14 @@ void collideWithDescendantObjects(QuadNode* node, Circle* cur_circle) {
 }
 
 void handleCollisionWithQueryCandidates(Circle* cur_circle) {
-    // collide with ancestors
     QuadNode* cur_node = cur_circle->node;
     
     collideWithAncestorObjects(cur_node, cur_circle);
     collideWithDescendantObjects(cur_node, cur_circle);
-
-}
-
-// debuger helper
-void printObjectsInQuadNode(const QuadNode &node) {
-    if (node.active) {
-        std::cout << "Node ID: " << node.id << ", Objects: ";
-        for (Circle *obj : node.objects) {
-            std::cout << obj << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    for (const QuadNode *child : node.children) {
-        if (child != nullptr) 
-            printObjectsInQuadNode(*child);
-    }
 }
 
 void drawActiveNodes(QuadNode* node) {
     if (node->active) {
-        // std::cout << "Node ID: " << node.id << ", Objects: ";
-        // for (Circle *obj : node.objects) {
-        //     std::cout << obj << " ";
-        // }
-        // std::cout << std::endl;
         Vector2 min = node->min;
         Vector2 max = node->max;
         Rectangle rect = {min.x, min.y, max.x - min.x, max.y - min.y};
@@ -299,6 +264,22 @@ void drawActiveNodes(QuadNode* node) {
     }
 }
 
+// debuger helper
+// void printObjectsInQuadNode(const QuadNode &node) {
+//     if (node.active) {
+//         std::cout << "Node ID: " << node.id << ", Objects: ";
+//         for (Circle *obj : node.objects) {
+//             std::cout << obj << " ";
+//         }
+//         std::cout << std::endl;
+//     }
+
+//     for (const QuadNode *child : node.children) {
+//         if (child != nullptr) 
+//             printObjectsInQuadNode(*child);
+//     }
+// }
+
 int main() {
     std::vector<Circle*> circles;
     int space_count = 0;
@@ -306,8 +287,6 @@ int main() {
     QuadNode root;
 
     generateQuadTree(root);
-
-    std::cout << "node count " << NODE_COUNT << std::endl;
 
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "HW 4 - Gimena & Tan");
     SetTargetFPS(FPS);
@@ -369,29 +348,6 @@ int main() {
                         new_node->active = true;
                         circles[circle_index]->node = new_node;
                     }
-                    // else if (it == old_node->objects.end()) {
-                    //     // the circle was not in the range of old node so this is new circle, pushback
-                    //     new_node->objects.push_back(&circles[circle_index]);
-                    //     new_node->active = true;
-                    // }
-
-                    
-                    // TODO: (done look up)
-                    // check if ball can still be contained within current node
-                        // if yes, check if can be in its children (use/change canFitObject() method for this :3)
-                        // if no, go up to parent
-                            // after going up to parent, check again if can fit in other children of parent
-
-                    // then insert circle:
-                    // insertObject(&circles[circle_index], &root); // TODO: remove
-                    
-                    // get candidate objects
-                    // std::vector<Circle*> candidate_objects = queryCandidateObjects(circles[circle_index]);
-                    // for (int j = 0; j < candidate_objects.size(); j++) {
-                    //     if (circles[i] == candidate_objects[j]) continue;
-
-                    //     circleCollision(*circles[i], *candidate_objects[j]);
-                    // }
 
                     handleCollisionWithQueryCandidates(circles[circle_index]);
 
@@ -408,49 +364,15 @@ int main() {
         for (int i = 0; i < circles.size(); i++) {
             DrawCircleV(circles[i]->position, circles[i]->radius, circles[i]->color);
         }
-        // std::string space_label = "Space Pressed: " + std::to_string(space_count);
-        std::string circle_count = "Circles: " + std::to_string(circles.size());
-        // std::string grid_instruction = "Press G to toggle grid";
-        // DrawText(space_label.c_str(), 10, 10, 24, DARKGRAY);
-        DrawText(circle_count.c_str(), 10, 40, 24, DARKGRAY);
-        // DrawText(grid_instruction.c_str(), 10, 70, 24, DARKGRAY);
-
-        if (PAUSED)
-            DrawText("PAUSED", 10, 70, 24, DARKGRAY);
-            
-        // draw quad tree
-        drawActiveNodes(&root);
 
         DrawText(std::to_string(GetFPS()).c_str(), 10, 10, 24, RED);
+        std::string circle_count = "Circles: " + std::to_string(circles.size());
+        DrawText(circle_count.c_str(), 10, 40, 24, DARKGRAY);
+
+        drawActiveNodes(&root);
         
-
-        // // Bonus Stuffs
-        // // draw columns
-        // if (showGrid)
-        // {
-        //     for (int col = 0; col < GRID_COLS; col++)
-        //     {
-        //         DrawLine(col * CELL_SIZE, 0, col * CELL_SIZE, WINDOW_HEIGHT, LIGHTGRAY);
-        //     }
-
-        //     for (int row = 0; row < GRID_ROWS; ++row)
-        //     {
-        //         // draw rows
-        //         DrawLine(0, row * CELL_SIZE, WINDOW_WIDTH, row * CELL_SIZE, LIGHTGRAY);
-
-        //         // draw labels
-        //         for (int col = 0; col < GRID_COLS; ++col)
-        //         {
-        //             std::string cell_label = "(" + std::to_string(col) + "," + std::to_string(row) + ")";
-        //             DrawText(cell_label.c_str(), grid[row][col].position.x + 2, grid[row][col].position.y + 3, 12, DARKGRAY);
-
-        //             std::string occupants = std::to_string(grid[row][col].objects.size());
-
-        //             Color occupants_color = (grid[row][col].objects.size() > 1) ? GREEN : RED;
-        //             DrawText(occupants.c_str(), grid[row][col].position.x + (CELL_SIZE / 2) - 8, grid[row][col].position.y + (CELL_SIZE / 2) - 10, 24, occupants_color);
-        //         }
-        //     }
-        // }
+        if (PAUSED)
+            DrawText("PAUSED", 10, 70, 24, DARKGRAY);
 
         EndDrawing();
     }
