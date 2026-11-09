@@ -159,9 +159,11 @@ void initializeCamera() {
     Camera2D& c = camera;
     Motorcycle& m = motorcycle;
 
-    c.offset = {WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f};
+    c.offset = {WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f - 20.0f};
 
-    c.target = m.rear_wheel.position;
+    Vector2 motorcycleCenter = {(motorcycle.front_wheel.position.x + motorcycle.rear_wheel.position.x) / 2.0f, (motorcycle.front_wheel.position.y + motorcycle.rear_wheel.position.y) / 2.0f};
+
+    c.target = motorcycleCenter;
 
     c.rotation = 0.0f;
     c.zoom = 1.0f;
@@ -314,6 +316,32 @@ void applySpringDamper(const Ball& a, const Ball& b, const Spring& spring, Vecto
 
 void updateCamera(float deltaTime) {
     Vector2 motorcycleCenter = {(motorcycle.front_wheel.position.x + motorcycle.rear_wheel.position.x) / 2.0f, (motorcycle.front_wheel.position.y + motorcycle.rear_wheel.position.y) / 2.0f};
+
+
+    const auto& segments = ground.getSegments();
+
+    if (!segments.empty()) {
+        float trackStart = segments.front().getStart().x;
+        float trackEnd = segments.back().getEnd().x;
+
+        float halfViewWidth =
+            GetScreenWidth() / (2.0f * camera.zoom);
+
+        float minCameraX = trackStart + halfViewWidth;
+        float maxCameraX = trackEnd - halfViewWidth;
+
+        if (minCameraX > maxCameraX) {
+            camera.target.x = (trackStart + trackEnd) / 2.0f;
+        }
+        else {
+            motorcycleCenter.x = Clamp(
+                motorcycleCenter.x,
+                minCameraX,
+                maxCameraX
+            );
+        }
+    }
+
 
     camera.target = Vector2Lerp(camera.target, motorcycleCenter, Clamp(CAMERA_SPEED * deltaTime, 0.0f, 1.0f));
 }
