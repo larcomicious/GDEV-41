@@ -8,9 +8,9 @@ const float FPS = 60;
 const int WINDOW_WIDTH = 1280;
 const int WINDOW_HEIGHT = 720;
 
-const float SPRING_STIFFNESS = 8.0f;   // how hard it pulls toward the mouse
-const float DAMPING_FACTOR   = 1.5f;   // how quickly the motion dies out
-const float MAX_SPEED        = 700.0f; // safety cap
+const float SPRING_STIFFNESS = 8.0f;
+const float DAMPING_FACTOR   = 1.5f;
+const float MAX_SPEED        = 700.0f;
 
 enum AttractionType {
     normal,
