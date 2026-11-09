@@ -8,6 +8,10 @@ const float FPS = 60;
 const int WINDOW_WIDTH = 1280;
 const int WINDOW_HEIGHT = 720;
 
+const float SPRING_STIFFNESS = 8.0f;   // how hard it pulls toward the mouse
+const float DAMPING_FACTOR   = 1.5f;   // how quickly the motion dies out
+const float MAX_SPEED        = 700.0f; // safety cap
+
 enum AttractionType {
     normal,
     attracted,
@@ -137,17 +141,40 @@ int main() {
             {
                 case AttractionType::attracted:
                 {
+                    // spring logic (Hooke's Law - with Spring Damper System)
+
+                    // dir - length of spring
+                    // rest length = mouse position, current length = asteroid position so it is attracted to the mouse
+                    // (mouse - asteroid) is the same as -(asteroid - mouse), no need for negative later on k 
                     Vector2 dir = Vector2Subtract(mousePosition, transform.position);
-                    if (Vector2Length(dir) > 0.001f)
-                        transform.direction = Vector2Normalize(dir);
+                    Vector2 vel = Vector2Scale(transform.direction, transform.speed);
+
+                    // Fs = -k Δl - bv
+                    Vector2 accel = Vector2Subtract(
+                        Vector2Scale(dir, SPRING_STIFFNESS),
+                        Vector2Scale(vel, DAMPING_FACTOR));
+
+                    // apply force
+                    vel = Vector2Add(vel, Vector2Scale(accel, delta_time));
+
+                    float newSpeed = Vector2Length(vel);
+                    if (newSpeed > 0.001f)
+                    {
+                        transform.direction = Vector2Scale(vel, 1.0f / newSpeed);
+                        transform.speed = fminf(newSpeed, MAX_SPEED);
+                    }
+                    else
+                    {
+                        transform.speed = 0.0f;
+                    }
                     break;
                 }
                 case AttractionType::repelled:
                 {
-                    Vector2 away = Vector2Subtract(transform.position, mousePosition);
+                    Vector2 dir = Vector2Subtract(transform.position, mousePosition);
                     if (CheckCollisionPointCircle(mousePosition, transform.position, asteroid.radius * 2.0f)
-                        && Vector2Length(away) > 0.001f)
-                        transform.direction = Vector2Normalize(away);
+                        && Vector2Length(dir) > 0.001f)
+                        transform.direction = Vector2Normalize(dir);
                     break;
                 }
                 default:
