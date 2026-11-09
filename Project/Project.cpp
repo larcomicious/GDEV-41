@@ -2,6 +2,7 @@
 #include <raylib.h>
 #include <raymath.h>
 #include "segment_ground.h"
+#include "track.h"
 
 const int WINDOW_WIDTH = 1080;
 const int WINDOW_HEIGHT = 720;
@@ -17,13 +18,12 @@ const float TURBO_MULTIPLIER = 3.0f;
 const float SPRING_REST_LENGTH = 100.0f;
 const float SPRING_K = 3000.0f;
 const float SPRING_B = 80.0f;
+const float WHEEL_DISTANCE = 100.0f;
 
 const float GROUND_Y = 600.0f;
 // FlatGround ground(GROUND_Y);
-SegmentGround ground({100.0f, 700.0f}, {900.0f, 550.0f});
+// SegmentGround ground({100.0f, 700.0f}, {900.0f, 550.0f});
 const float GROUND_FRICTION = 15.0f;
-
-const float WHEEL_DISTANCE = 100.0f;
 
 struct Ball {
     Vector2 position;
@@ -74,6 +74,7 @@ struct Motorcycle {
 
 // global variables
 Motorcycle motorcycle;
+Track ground;
 
 void initializeMotorcycle() {
     Motorcycle& m = motorcycle;
@@ -125,6 +126,15 @@ void initializeMotorcycle() {
     // m.wheel_to_wheel_suspension.k = WHEEL_TO_WHEEL_STIFFNESS;
     // m.wheel_to_wheel_suspension.b = WHEEL_TO_WHEEL_DAMPNESS;
 
+}
+
+void initializeTrack() {
+    Track& g = ground;
+    g.addSegment({100.0f, 500.0f}, {300.0f, 500.0f});
+    g.addSegment({300.0f, 500.0f}, {450.0f, 400.0f});
+    g.addSegment({450.0f, 400.0f}, {600.0f, 350.0f});
+    g.addSegment({600.0f, 350.0f}, {800.0f, 450.0f});
+    g.addSegment({800.0f, 450.0f}, {1000.0f, 450.0f});
 }
 
 void handlePhysicsMovement() {
@@ -181,6 +191,10 @@ void resolveWheelGroundCollision(Ball& wheel, bool& on_ground, const Ground& gro
     const float CONTACT_TOLERANCE = 0.01f;
 
     GroundSample sample = ground.sample(wheel.position);
+    if (!sample.valid) {
+        on_ground = false;
+        return;
+    }
 
     Vector2 normal = sample.normal;
 
@@ -271,6 +285,7 @@ void applySpringDamper(const Ball& a, const Ball& b, const Spring& spring, Vecto
 
 int main() {
     initializeMotorcycle();
+    initializeTrack();
 
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Project");
     SetTargetFPS(FPS);
@@ -323,14 +338,36 @@ int main() {
             applyGroundFriction(motorcycle.rear_wheel, motorcycle.rear_wheel_on_ground, ground);
 
             accumulator -= TIMESTEP;
+
+            GroundSample front_sample =
+                ground.sample(motorcycle.front_wheel.position);
+
+            GroundSample rear_sample =
+                ground.sample(motorcycle.rear_wheel.position);
+
+            if (motorcycle.front_wheel_on_ground) {
+                TraceLog(
+                    LOG_INFO,
+                    "Front Wheel Segment: %d",
+                    front_sample.segment_index
+                );
+            }
+
+            if (motorcycle.rear_wheel_on_ground) {
+                TraceLog(
+                    LOG_INFO,
+                    "Rear Wheel Segment: %d",
+                    rear_sample.segment_index
+                );
+            }
         }
 
         BeginDrawing();
         ClearBackground(WHITE);
-        // DrawRectangle(0, GROUND_Y, WINDOW_WIDTH, WINDOW_HEIGHT - GROUND_Y, DARKGREEN);
-        DrawLineEx({100.0f, 700.0f}, {900.0f, 550.0f}, 5.0f, DARKGREEN);
         
         motorcycle.Draw();
+        for (const SegmentGround& segment : ground.getSegments())
+            DrawLineEx(segment.getStart(), segment.getEnd(), 5.0f, DARKGREEN);
 
         DrawText("RIGHT: Accelerate    LEFT: Reverse    R: Reset", 20, 20, 20, BLACK);
 
