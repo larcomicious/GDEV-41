@@ -65,8 +65,12 @@ void createAsteroid(entt::registry& registry, bool fromDestroy, Vector2 parentPo
         transform.position = {(float)GetRandomValue(60, WINDOW_WIDTH - 60), (float)GetRandomValue(60, WINDOW_HEIGHT - 60)};
     }
 
-    transform.direction = {GetRandomFloat(-1.0f, 1.0f), GetRandomFloat(-1.0f, 1.0f)};
-    transform.speed = GetRandomFloat(2.0f, 4.0f);
+    Vector2 dir = {GetRandomFloat(-1.0f, 1.0f), GetRandomFloat(-1.0f, 1.0f)};
+    if (Vector2Length(dir) < 0.01f)
+        dir = {1, 0};
+    transform.direction = Vector2Normalize(dir);
+    // transform.direction = {GetRandomFloat(-1.0f, 1.0f), GetRandomFloat(-1.0f, 1.0f)};
+    transform.speed = GetRandomFloat(120.0f, 240.0f);
 
     AsteroidComponent& ast_comp = registry.emplace<AsteroidComponent>(asteroid);
     ast_comp.radius = (float)GetRandomValue(20,50);
@@ -106,9 +110,10 @@ int main() {
     SetTargetFPS(FPS);
     float timer = 0.0f;          
     const float interval = 3.0f;
-
+    
     while(!WindowShouldClose()) {
-        timer += GetFrameTime();
+        float delta_time = GetFrameTime();
+        timer += delta_time;
         if (timer >= interval)
         {
             createAsteroid(registry, false);
@@ -131,17 +136,25 @@ int main() {
             switch (attraction.type)
             {
                 case AttractionType::attracted:
-                    transform.direction = Vector2Normalize(Vector2Subtract(mousePosition, transform.position));
+                {
+                    Vector2 dir = Vector2Subtract(mousePosition, transform.position);
+                    if (Vector2Length(dir) > 0.001f)
+                        transform.direction = Vector2Normalize(dir);
                     break;
+                }
                 case AttractionType::repelled:
-                    if (CheckCollisionPointCircle(mousePosition, transform.position, asteroid.radius * 1.5f))
-                        transform.direction = Vector2Negate(Vector2Normalize(Vector2Subtract(mousePosition, transform.position)));
+                {
+                    Vector2 away = Vector2Subtract(transform.position, mousePosition);
+                    if (CheckCollisionPointCircle(mousePosition, transform.position, asteroid.radius * 2.0f)
+                        && Vector2Length(away) > 0.001f)
+                        transform.direction = Vector2Normalize(away);
                     break;
+                }
                 default:
                     break;
             }
             
-            transform.position = Vector2Add(transform.position, Vector2Scale(transform.direction, transform.speed));
+            transform.position = Vector2Add(transform.position, Vector2Scale(transform.direction, transform.speed * delta_time));
 
             // wall collision
             if (transform.position.x - asteroid.radius <= 0) {
@@ -162,7 +175,7 @@ int main() {
                 transform.direction.y = -fabsf(transform.direction.y);
             }
 
-            if(destruction.selfDestruct) destruction.destructTime -= 1/FPS;
+            if(destruction.selfDestruct) destruction.destructTime -= delta_time;
 
             bool timeoutAsteroid = (destruction.selfDestruct) && (destruction.destructTime <= 0);
             bool shootAsteroid = clicked && CheckCollisionPointCircle(mousePosition, transform.position, asteroid.radius);
