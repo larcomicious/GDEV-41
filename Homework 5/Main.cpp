@@ -160,7 +160,7 @@ int main() {
                     float newSpeed = Vector2Length(vel);
                     if (newSpeed > 0.001f)
                     {
-                        transform.direction = Vector2Scale(vel, 1.0f / newSpeed);
+                        transform.direction = Vector2Normalize(vel);
                         transform.speed = fminf(newSpeed, MAX_SPEED);
                     }
                     else
