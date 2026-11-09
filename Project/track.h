@@ -9,12 +9,12 @@
 
 class Track : public Ground {
 private:
-    std::vector<SegmentGround> segments;
-    Vector2 lastBezierP2;
-    Vector2 lastBezierP3;
-    bool hasPreviousBezier = false;
+Vector2 lastBezierP2;
+Vector2 lastBezierP3;
+bool hasPreviousBezier = false;
 
 public:
+std::vector<SegmentGround> segments;
     void addSegment(Vector2 start, Vector2 end) {
         segments.emplace_back(start, end);
     }

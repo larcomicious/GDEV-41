@@ -3,7 +3,7 @@
 #include <raymath.h>
 #include "segment_ground.h"
 #include "track.h"
-#include "track_builder.h"
+#include "course.h"
 
 const int WINDOW_WIDTH = 1080;
 const int WINDOW_HEIGHT = 720;
@@ -73,6 +73,7 @@ struct Motorcycle {
 
 // global variables
 Motorcycle motorcycle;
+Course course;
 Track ground;
 Camera2D camera = {0};
 
@@ -128,31 +129,13 @@ void initializeMotorcycle() {
 
 }
 
-void initializeTrack() {
-    TrackBuilder builder({100.0f, 500.0f});
+void initializeCourse() {
+    Course& c = course;
+    Track& g = ground;
 
-    // Straight starting section
-    builder.addStraightTo({250.0f, 500.0f});
+    c = createBeginnerCourse();
 
-    // Uphill curve
-    builder.addBezierTo(
-        {350.0f, 500.0f},
-        {400.0f, 400.0f},
-        {500.0f, 400.0f},
-        30
-    );
-
-    // Smooth downhill curve
-    builder.addSmoothBezierTo(
-        {700.0f, 500.0f},
-        {900.0f, 500.0f},
-        30
-    );
-
-    // Straight ending section
-    builder.addStraightTo({1100.0f, 500.0f});
-
-    ground = builder.getTrack();
+    g = c.track;
 }
 
 void initializeCamera() {
@@ -349,7 +332,7 @@ void updateCamera(float deltaTime) {
 
 int main() {
     initializeMotorcycle();
-    initializeTrack();
+    initializeCourse();
     initializeCamera();
 
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Project");
@@ -404,11 +387,11 @@ int main() {
 
             accumulator -= TIMESTEP;
 
-            GroundSample front_sample =
-                ground.sample(motorcycle.front_wheel.position);
+            // GroundSample front_sample =
+            //     ground.sample(motorcycle.front_wheel.position);
 
-            GroundSample rear_sample =
-                ground.sample(motorcycle.rear_wheel.position);
+            // GroundSample rear_sample =
+            //     ground.sample(motorcycle.rear_wheel.position);
 
             // if (motorcycle.front_wheel_on_ground) {
             //     TraceLog(
@@ -439,7 +422,13 @@ int main() {
         for (const SegmentGround& segment : ground.getSegments()) {
             DrawLineEx(segment.getStart(), segment.getEnd(), 5.0f, DARKGREEN);
         }
-        
+
+        // finish 
+        DrawLineEx({course.startPosition.x, course.startPosition.y - 120.0f}, course.startPosition, 5.0f, GREEN);
+        // start
+        DrawLineEx({course.finishX, 380.0f}, {course.finishX, 500.0f}, 5.0f, RED);
+                
+        // draw motorcycle
         motorcycle.Draw();
 
         EndMode2D(); 
