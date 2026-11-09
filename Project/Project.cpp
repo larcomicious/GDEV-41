@@ -1,6 +1,7 @@
 #include <iostream>
 #include <raylib.h>
 #include <raymath.h>
+#include "segment_ground.h"
 
 const int WINDOW_WIDTH = 1080;
 const int WINDOW_HEIGHT = 720;
@@ -11,12 +12,15 @@ const Vector2 GRAVITY = {0, 1000};
 
 const float ENGINE_FORCE = 8000.0f;
 const float JUMP_FORCE = 250000.0f;
+const float TURBO_MULTIPLIER = 3.0f;
 
 const float SPRING_REST_LENGTH = 100.0f;
-const float SPRING_K = 1000.0f;
+const float SPRING_K = 3000.0f;
 const float SPRING_B = 80.0f;
 
 const float GROUND_Y = 600.0f;
+// FlatGround ground(GROUND_Y);
+SegmentGround ground({100.0f, 700.0f}, {900.0f, 550.0f});
 const float GROUND_FRICTION = 15.0f;
 
 const float WHEEL_DISTANCE = 100.0f;
@@ -173,38 +177,66 @@ void solveDistanceConstraint(Ball& a, Ball& b, float rest_length) {
     b.velocity = Vector2Subtract(b.velocity, Vector2Scale(velocity_correction, b.inverse_mass));
 }
 
-void resolveWheelGroundCollision(Ball& wheel, bool& on_ground) {
-    float wheel_bottom = wheel.position.y + wheel.radius;
+void resolveWheelGroundCollision(Ball& wheel, bool& on_ground, const Ground& ground) {
+    const float CONTACT_TOLERANCE = 0.01f;
 
-    on_ground = wheel_bottom >= GROUND_Y - 0.001f;
+    GroundSample sample = ground.sample(wheel.position);
 
-    if (wheel_bottom >= GROUND_Y) {
+    Vector2 normal = sample.normal;
 
-        wheel.position.y = GROUND_Y - wheel.radius;
+    Vector2 to_wheel = Vector2Subtract(wheel.position, sample.point);
 
-        if (wheel.velocity.y > 0.0f)
-            wheel.velocity.y = 0.0f;
+    float distance = Vector2DotProduct(to_wheel, normal);
+
+    on_ground = distance <= wheel.radius + CONTACT_TOLERANCE;
+
+     // resolve clipping
+    if (distance < wheel.radius) {
+        float penetration = wheel.radius - distance;
+
+        wheel.position = Vector2Add(wheel.position, Vector2Scale(normal, penetration));
+
+        // remove velocity directed into the ground
+        float normal_velocity = Vector2DotProduct(wheel.velocity, normal);
+
+        if (normal_velocity < 0.0f)
+            wheel.velocity = Vector2Subtract(wheel.velocity, Vector2Scale(normal, normal_velocity));
     }
 }
 
-void handleGroundCollision() {
+void handleGroundCollision(const Ground& ground) {
     Motorcycle& m = motorcycle;
 
-    resolveWheelGroundCollision(m.front_wheel, m.front_wheel_on_ground);
-    resolveWheelGroundCollision(m.rear_wheel, m.rear_wheel_on_ground);
+    resolveWheelGroundCollision(m.front_wheel, m.front_wheel_on_ground, ground);
+    resolveWheelGroundCollision(m.rear_wheel, m.rear_wheel_on_ground, ground);
 }
 
-void applyGroundFriction(Ball& wheel, bool on_ground) {
+void applyGroundFriction(Ball& wheel, bool on_ground, const Ground& ground) {
 
-    if (!on_ground || wheel.velocity.y < 0.0f)
+    if (!on_ground)
         return;
 
+    GroundSample sample = ground.sample(wheel.position);
+
+    Vector2 tangent = sample.tangent;
+
+    // project velocity onto the ground tangent
+    float tangent_velocity = Vector2DotProduct(wheel.velocity, tangent);
+
+    Vector2 tangential_component = Vector2Scale(tangent, tangent_velocity);
+
+    // preserve velocity perpendicular to the ground
+    Vector2 normal_component = Vector2Subtract(wheel.velocity, tangential_component);
+
+    // Apply friction to tangential velocity.
     float friction_factor = 1.0f - GROUND_FRICTION * wheel.inverse_mass * TIMESTEP;
 
     if (friction_factor < 0.0f)
         friction_factor = 0.0f;
 
-    wheel.velocity.x *= friction_factor;
+    tangential_component = Vector2Scale(tangential_component, friction_factor);
+
+    wheel.velocity = Vector2Add(tangential_component, normal_component);
 }
 
 Vector2 calculateSpringForce(Vector2 spring_start, Vector2 spring_end, float k, float rest_length) {
@@ -267,11 +299,11 @@ int main() {
             // fear suspension
             applySpringDamper(motorcycle.body, motorcycle.rear_wheel, motorcycle.rear_spring, body_forces, rear_wheel_forces);
 
-            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D))
-                rear_wheel_forces.x += ENGINE_FORCE;
+            if ((IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)))
+                rear_wheel_forces.x += IsKeyDown(KEY_LEFT_SHIFT) ? ENGINE_FORCE * TURBO_MULTIPLIER : ENGINE_FORCE;
 
-            if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))
-                rear_wheel_forces.x -= ENGINE_FORCE;
+            if ((IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)))
+                rear_wheel_forces.x -= IsKeyDown(KEY_LEFT_SHIFT) ? ENGINE_FORCE * TURBO_MULTIPLIER : ENGINE_FORCE;
             
             if (IsKeyPressed(KEY_SPACE)) {
                 body_forces.y -= JUMP_FORCE;
@@ -285,17 +317,18 @@ int main() {
 
             handlePhysicsMovement();
             solveDistanceConstraint(motorcycle.rear_wheel, motorcycle.front_wheel, WHEEL_DISTANCE);
-            handleGroundCollision();
+            handleGroundCollision(ground);
             
-            applyGroundFriction(motorcycle.front_wheel, motorcycle.front_wheel_on_ground);
-            applyGroundFriction(motorcycle.rear_wheel, motorcycle.rear_wheel_on_ground);
+            applyGroundFriction(motorcycle.front_wheel, motorcycle.front_wheel_on_ground, ground);
+            applyGroundFriction(motorcycle.rear_wheel, motorcycle.rear_wheel_on_ground, ground);
 
             accumulator -= TIMESTEP;
         }
 
         BeginDrawing();
         ClearBackground(WHITE);
-        DrawRectangle(0, GROUND_Y, WINDOW_WIDTH, WINDOW_HEIGHT - GROUND_Y, DARKGREEN);
+        // DrawRectangle(0, GROUND_Y, WINDOW_WIDTH, WINDOW_HEIGHT - GROUND_Y, DARKGREEN);
+        DrawLineEx({100.0f, 700.0f}, {900.0f, 550.0f}, 5.0f, DARKGREEN);
         
         motorcycle.Draw();
 
