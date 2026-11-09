@@ -10,17 +10,16 @@ const float TIMESTEP = 1 / 120.0f;
 const Vector2 GRAVITY = {0, 1000};
 
 const float ENGINE_FORCE = 8000.0f;
+const float JUMP_FORCE = 250000.0f;
 
 const float SPRING_REST_LENGTH = 100.0f;
 const float SPRING_K = 1000.0f;
-const float SPRING_B = 1.0f;
+const float SPRING_B = 80.0f;
 
 const float GROUND_Y = 600.0f;
 const float GROUND_FRICTION = 15.0f;
 
 const float WHEEL_DISTANCE = 100.0f;
-const float WHEEL_TO_WHEEL_STIFFNESS = 1000.0f;
-const float WHEEL_TO_WHEEL_DAMPNESS = 100.0f;
 
 struct Ball {
     Vector2 position;
@@ -50,23 +49,27 @@ struct Motorcycle {
 
     Spring front_spring;
     Spring rear_spring;
-    Spring wheel_to_wheel_suspension;
+
+    bool front_wheel_on_ground;
+    bool rear_wheel_on_ground;
 
     void Draw() {
-        // springs
-        // DrawLineEx(body.position, front_wheel.position, 6.0f, DARKGRAY);
-        // DrawLineEx(body.position, rear_wheel.position, 6.0f, DARKGRAY);
+        DrawLineEx(body.position, front_wheel.position, 5.0f, GRAY);
+        DrawLineEx(body.position, rear_wheel.position, 5.0f, GRAY);
         DrawLineEx(front_wheel.position, rear_wheel.position, 8.0f, DARKGRAY);
         
         DrawCircleV(front_wheel.position, front_wheel.radius, front_wheel.color);
         DrawCircleV(rear_wheel.position, rear_wheel.radius, rear_wheel.color);
         DrawCircleV(body.position, body.radius, body.color);
+
+        // debug
+        DrawText(front_wheel_on_ground ? "FRONT: GROUNDED" : "FRONT: AIRBORNE", 20, 80, 18, front_wheel_on_ground ? GREEN : RED);
+        DrawText(rear_wheel_on_ground ? "REAR: GROUNDED" : "REAR: AIRBORNE", 20, 105, 18, rear_wheel_on_ground ? GREEN : RED);
     }
 };
 
 // global variables
 Motorcycle motorcycle;
-bool onGround;
 
 void initializeMotorcycle() {
     Motorcycle& m = motorcycle;
@@ -109,29 +112,30 @@ void initializeMotorcycle() {
     m.rear_spring.b = SPRING_B;
     m.rear_spring.k = SPRING_K;
 
-    m.wheel_to_wheel_suspension.spring_start = m.rear_wheel.position;
-    m.wheel_to_wheel_suspension.spring_end = m.front_wheel.position;
-    m.wheel_to_wheel_suspension.rest_length = WHEEL_DISTANCE;
-    m.wheel_to_wheel_suspension.k = WHEEL_TO_WHEEL_STIFFNESS;
-    m.wheel_to_wheel_suspension.b = WHEEL_TO_WHEEL_DAMPNESS;
+    m.front_wheel_on_ground = false;
+    m.rear_wheel_on_ground = false;
+
+    // m.wheel_to_wheel_suspension.spring_start = m.rear_wheel.position;
+    // m.wheel_to_wheel_suspension.spring_end = m.front_wheel.position;
+    // m.wheel_to_wheel_suspension.rest_length = WHEEL_DISTANCE;
+    // m.wheel_to_wheel_suspension.k = WHEEL_TO_WHEEL_STIFFNESS;
+    // m.wheel_to_wheel_suspension.b = WHEEL_TO_WHEEL_DAMPNESS;
 
 }
 
 void handlePhysicsMovement() {
     Motorcycle& m = motorcycle;
-    // m.body.velocity = Vector2Add(m.body.velocity, Vector2Scale(m.body.acceleration, TIMESTEP));
-    // m.body.position = Vector2Add(m.body.position, Vector2Scale(m.body.velocity, TIMESTEP));
+    m.body.velocity = Vector2Add(m.body.velocity, Vector2Scale(m.body.acceleration, TIMESTEP));
+    m.body.position = Vector2Add(m.body.position, Vector2Scale(m.body.velocity, TIMESTEP));
 
     m.front_wheel.velocity = Vector2Add(m.front_wheel.velocity, Vector2Scale(m.front_wheel.acceleration, TIMESTEP));
     m.front_wheel.position = Vector2Add(m.front_wheel.position, Vector2Scale(m.front_wheel.velocity, TIMESTEP));
 
     m.rear_wheel.velocity = Vector2Add(m.rear_wheel.velocity, Vector2Scale(m.rear_wheel.acceleration, TIMESTEP));
-    if (onGround)
-        m.rear_wheel.velocity = Vector2Subtract(m.rear_wheel.velocity, Vector2Scale(m.rear_wheel.velocity, GROUND_FRICTION * m.rear_wheel.inverse_mass * TIMESTEP));
     m.rear_wheel.position = Vector2Add(m.rear_wheel.position, Vector2Scale(m.rear_wheel.velocity, TIMESTEP));
 
-    m.wheel_to_wheel_suspension.spring_start = m.rear_wheel.position;
-    m.wheel_to_wheel_suspension.spring_end = m.front_wheel.position;
+    // m.wheel_to_wheel_suspension.spring_start = m.rear_wheel.position;
+    // m.wheel_to_wheel_suspension.spring_end = m.front_wheel.position;
     // m.front_spring.spring_start = m.body.position;
     // m.front_spring.spring_end = m.front_wheel.position;
 
@@ -139,28 +143,68 @@ void handlePhysicsMovement() {
     // m.rear_spring.spring_end = m.rear_wheel.position;
 }
 
+void solveDistanceConstraint(Ball& a, Ball& b, float rest_length) {
+
+    Vector2 direction = Vector2Subtract(b.position, a.position);
+    float distance = Vector2Length(direction);
+
+    if (distance < 0.0001f)
+        return;
+
+    float inverse_mass_sum = a.inverse_mass + b.inverse_mass;
+
+    if (inverse_mass_sum <= 0.0f)
+        return;
+
+    Vector2 axis = Vector2Scale(direction, 1.0f / distance);
+
+    float error = distance - rest_length;
+
+    Vector2 correction = Vector2Scale(axis, error / inverse_mass_sum);
+
+    a.position = Vector2Add(a.position, Vector2Scale(correction, a.inverse_mass));
+    b.position = Vector2Subtract(b.position, Vector2Scale(correction, b.inverse_mass));
+
+    Vector2 relative_velocity = Vector2Subtract(b.velocity, a.velocity);
+    float relative_speed = Vector2DotProduct(relative_velocity, axis);
+
+    Vector2 velocity_correction = Vector2Scale(axis, relative_speed / inverse_mass_sum);
+    a.velocity = Vector2Add(a.velocity, Vector2Scale(velocity_correction, a.inverse_mass));
+    b.velocity = Vector2Subtract(b.velocity, Vector2Scale(velocity_correction, b.inverse_mass));
+}
+
+void resolveWheelGroundCollision(Ball& wheel, bool& on_ground) {
+    float wheel_bottom = wheel.position.y + wheel.radius;
+
+    on_ground = wheel_bottom >= GROUND_Y - 0.001f;
+
+    if (wheel_bottom >= GROUND_Y) {
+
+        wheel.position.y = GROUND_Y - wheel.radius;
+
+        if (wheel.velocity.y > 0.0f)
+            wheel.velocity.y = 0.0f;
+    }
+}
+
 void handleGroundCollision() {
     Motorcycle& m = motorcycle;
 
-    if (m.front_wheel.position.y + m.front_wheel.radius > GROUND_Y) {
-        m.front_wheel.position.y = GROUND_Y - m.front_wheel.radius;
+    resolveWheelGroundCollision(m.front_wheel, m.front_wheel_on_ground);
+    resolveWheelGroundCollision(m.rear_wheel, m.rear_wheel_on_ground);
+}
 
-        if (m.front_wheel.velocity.y > 0)
-            m.front_wheel.velocity.y = 0;
-    }
+void applyGroundFriction(Ball& wheel, bool on_ground) {
 
-    if (m.rear_wheel.position.y + m.rear_wheel.radius > GROUND_Y) {
-        onGround = true;
-        std::cout << "on ground" << std::endl;
-        m.rear_wheel.position.y = GROUND_Y - m.rear_wheel.radius;
-        
-        if (m.rear_wheel.velocity.y > 0)
-            m.rear_wheel.velocity.y = 0;
-    }
-    else {
-        onGround = false;
-        std::cout << "not on ground" << std::endl;
-    }
+    if (!on_ground || wheel.velocity.y < 0.0f)
+        return;
+
+    float friction_factor = 1.0f - GROUND_FRICTION * wheel.inverse_mass * TIMESTEP;
+
+    if (friction_factor < 0.0f)
+        friction_factor = 0.0f;
+
+    wheel.velocity.x *= friction_factor;
 }
 
 Vector2 calculateSpringForce(Vector2 spring_start, Vector2 spring_end, float k, float rest_length) {
@@ -168,8 +212,28 @@ Vector2 calculateSpringForce(Vector2 spring_start, Vector2 spring_end, float k, 
     Vector2 d_norm = Vector2Normalize(d);
 
     return Vector2Scale(d_norm, - k * (Vector2Length(d) - rest_length));
+}
 
-    // return Vector2Subtract(Vector2Scale(d_norm, - k * (Vector2Length(d) - rest_length)), Vector2Scale(velocity, b));
+void applySpringDamper(const Ball& a, const Ball& b, const Spring& spring, Vector2& force_a, Vector2& force_b) {
+    Vector2 direction = Vector2Subtract(b.position, a.position);
+    float distance = Vector2Length(direction);
+
+    if (distance < 0.0001f)
+        return;
+
+    Vector2 axis = Vector2Scale(direction, 1.0f / distance);
+
+    Vector2 relative_velocity = Vector2Subtract(b.velocity, a.velocity);
+    float axial_speed = Vector2DotProduct(relative_velocity, axis);
+
+    float spring_magnitude = spring.k * (distance - spring.rest_length);
+    float damping_magnitude = spring.b * axial_speed;
+    float total_magnitude = spring_magnitude + damping_magnitude;
+
+    Vector2 force_on_b = Vector2Scale(axis, -total_magnitude);
+
+    force_b = Vector2Add(force_b, force_on_b);
+    force_a = Vector2Subtract(force_a, force_on_b);
 }
 
 
@@ -184,73 +248,47 @@ int main() {
     while (!WindowShouldClose()) {
         float delta_time = GetFrameTime();
 
-        // force accumulation
-        Vector2 body_forces = Vector2Zero();
-        Vector2 front_wheel_forces = Vector2Zero();
-        Vector2 rear_wheel_forces = Vector2Zero();
-
-        // Vector2 body_gravity = Vector2Scale(GRAVITY, motorcycle.body.mass);
-        // body_forces = Vector2Add(body_forces, body_gravity);
-
-        Vector2 front_gravity = Vector2Scale(GRAVITY, motorcycle.front_wheel.mass);
-        front_wheel_forces = Vector2Add(front_wheel_forces, front_gravity);
-
-        Vector2 rear_gravity = Vector2Scale(GRAVITY, motorcycle.rear_wheel.mass);
-        rear_wheel_forces = Vector2Add(rear_wheel_forces, rear_gravity);
-
-        // suspension forces
-        // Vector2 D = Vector2Subtract(motorcycle.front_spring.spring_end, motorcycle.front_spring.spring_start);
-        // Vector2 D_norm = Vector2Normalize(D);
-        // Vector2 front_spring_force = Vector2Scale(D_norm, -motorcycle.front_spring.k * (Vector2Length(D) - motorcycle.front_spring.rest_length));
-
-        // front_wheel_forces = Vector2Add(front_wheel_forces, front_spring_force);
-        // body_forces = Vector2Subtract(body_forces, front_spring_force);
-
-        // Vector2 D_rear = Vector2Subtract(motorcycle.rear_spring.spring_end, motorcycle.rear_spring.spring_start);
-        // Vector2 D_rear_norm = Vector2Normalize(D_rear);
-        // Vector2 rear_spring_force = Vector2Scale(D_rear_norm, -motorcycle.rear_spring.k * (Vector2Length(D_rear) - motorcycle.rear_spring.rest_length));
-
-        // rear_spring_force = Vector2Subtract(rear_spring_force, Vector2Scale(motorcycle.rear_wheel.velocity, motorcycle.rear_spring.b));
-        // rear_wheel_forces = Vector2Add(rear_wheel_forces, rear_spring_force);
-        // body_forces = Vector2Subtract(body_forces, rear_spring_force);
-
-        // wheel to wheel suspension
-        Vector2 wheel_to_wheel_suspension = calculateSpringForce(motorcycle.rear_wheel.position, motorcycle.front_wheel.position, WHEEL_TO_WHEEL_STIFFNESS, WHEEL_DISTANCE);
-        Vector2 wheel_axis = Vector2Normalize(Vector2Subtract(motorcycle.front_wheel.position, motorcycle.rear_wheel.position));
-        Vector2 relative_wheel_velocity = Vector2Subtract(motorcycle.front_wheel.velocity, motorcycle.rear_wheel.velocity);
-        float axial_relative_speed = Vector2DotProduct(relative_wheel_velocity, wheel_axis);
-        Vector2 damping_force = Vector2Scale(wheel_axis, -WHEEL_TO_WHEEL_DAMPNESS * axial_relative_speed);
-        Vector2 front_suspension_force = Vector2Add(wheel_to_wheel_suspension, damping_force);
-
-        front_wheel_forces = Vector2Add(front_wheel_forces, front_suspension_force);
-        rear_wheel_forces = Vector2Subtract(rear_wheel_forces, front_suspension_force);
-
-        if (IsKeyDown(KEY_RIGHT))
-        {
-            rear_wheel_forces.x += ENGINE_FORCE;
-        }
-
-        if (IsKeyDown(KEY_LEFT))
-        {
-            rear_wheel_forces.x -= ENGINE_FORCE;
-        }
-
         if (IsKeyPressed(KEY_R))
         {
             initializeMotorcycle();
         }
-        
-        // motorcycle.body.acceleration = Vector2Scale(body_forces, motorcycle.body.inverse_mass);
-        motorcycle.front_wheel.acceleration = Vector2Scale(front_wheel_forces, motorcycle.front_wheel.inverse_mass);
-        motorcycle.rear_wheel.acceleration = Vector2Scale(rear_wheel_forces, motorcycle.rear_wheel.inverse_mass);
 
         // physics loop
         accumulator += delta_time;
-        while(accumulator >= TIMESTEP) {
+
+        while (accumulator >= TIMESTEP) {
+
+            Vector2 body_forces = Vector2Scale(GRAVITY, motorcycle.body.mass);
+            Vector2 front_wheel_forces = Vector2Scale(GRAVITY, motorcycle.front_wheel.mass);
+            Vector2 rear_wheel_forces = Vector2Scale(GRAVITY, motorcycle.rear_wheel.mass);
+
+            // front suspension
+            applySpringDamper(motorcycle.body, motorcycle.front_wheel, motorcycle.front_spring, body_forces, front_wheel_forces);
+            // fear suspension
+            applySpringDamper(motorcycle.body, motorcycle.rear_wheel, motorcycle.rear_spring, body_forces, rear_wheel_forces);
+
+            if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D))
+                rear_wheel_forces.x += ENGINE_FORCE;
+
+            if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))
+                rear_wheel_forces.x -= ENGINE_FORCE;
+            
+            if (IsKeyPressed(KEY_SPACE)) {
+                body_forces.y -= JUMP_FORCE;
+                front_wheel_forces.y -= JUMP_FORCE;
+                rear_wheel_forces.y -= JUMP_FORCE;
+            }
+
+            motorcycle.body.acceleration = Vector2Scale(body_forces, motorcycle.body.inverse_mass);
+            motorcycle.front_wheel.acceleration = Vector2Scale(front_wheel_forces, motorcycle.front_wheel.inverse_mass);
+            motorcycle.rear_wheel.acceleration = Vector2Scale(rear_wheel_forces, motorcycle.rear_wheel.inverse_mass);
 
             handlePhysicsMovement();
-
+            solveDistanceConstraint(motorcycle.rear_wheel, motorcycle.front_wheel, WHEEL_DISTANCE);
             handleGroundCollision();
+            
+            applyGroundFriction(motorcycle.front_wheel, motorcycle.front_wheel_on_ground);
+            applyGroundFriction(motorcycle.rear_wheel, motorcycle.rear_wheel_on_ground);
 
             accumulator -= TIMESTEP;
         }
