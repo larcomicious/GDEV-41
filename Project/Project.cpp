@@ -3,6 +3,7 @@
 #include <raymath.h>
 #include "segment_ground.h"
 #include "track.h"
+#include "track_builder.h"
 
 const int WINDOW_WIDTH = 1080;
 const int WINDOW_HEIGHT = 720;
@@ -24,6 +25,8 @@ const float GROUND_Y = 600.0f;
 // FlatGround ground(GROUND_Y);
 // SegmentGround ground({100.0f, 700.0f}, {900.0f, 550.0f});
 const float GROUND_FRICTION = 15.0f;
+
+const float CAMERA_SPEED = 5.0f;
 
 struct Ball {
     Vector2 position;
@@ -65,16 +68,13 @@ struct Motorcycle {
         DrawCircleV(front_wheel.position, front_wheel.radius, front_wheel.color);
         DrawCircleV(rear_wheel.position, rear_wheel.radius, rear_wheel.color);
         DrawCircleV(body.position, body.radius, body.color);
-
-        // debug
-        DrawText(front_wheel_on_ground ? "FRONT: GROUNDED" : "FRONT: AIRBORNE", 20, 80, 18, front_wheel_on_ground ? GREEN : RED);
-        DrawText(rear_wheel_on_ground ? "REAR: GROUNDED" : "REAR: AIRBORNE", 20, 105, 18, rear_wheel_on_ground ? GREEN : RED);
     }
 };
 
 // global variables
 Motorcycle motorcycle;
 Track ground;
+Camera2D camera = {0};
 
 void initializeMotorcycle() {
     Motorcycle& m = motorcycle;
@@ -129,12 +129,42 @@ void initializeMotorcycle() {
 }
 
 void initializeTrack() {
-    Track& g = ground;
-    g.addSegment({100.0f, 500.0f}, {300.0f, 500.0f});
-    g.addSegment({300.0f, 500.0f}, {450.0f, 400.0f});
-    g.addSegment({450.0f, 400.0f}, {600.0f, 350.0f});
-    g.addSegment({600.0f, 350.0f}, {800.0f, 450.0f});
-    g.addSegment({800.0f, 450.0f}, {1000.0f, 450.0f});
+    TrackBuilder builder({100.0f, 500.0f});
+
+    // Straight starting section
+    builder.addStraightTo({250.0f, 500.0f});
+
+    // Uphill curve
+    builder.addBezierTo(
+        {350.0f, 500.0f},
+        {400.0f, 400.0f},
+        {500.0f, 400.0f},
+        30
+    );
+
+    // Smooth downhill curve
+    builder.addSmoothBezierTo(
+        {700.0f, 500.0f},
+        {900.0f, 500.0f},
+        30
+    );
+
+    // Straight ending section
+    builder.addStraightTo({1100.0f, 500.0f});
+
+    ground = builder.getTrack();
+}
+
+void initializeCamera() {
+    Camera2D& c = camera;
+    Motorcycle& m = motorcycle;
+
+    c.offset = {WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f};
+
+    c.target = m.rear_wheel.position;
+
+    c.rotation = 0.0f;
+    c.zoom = 1.0f;
 }
 
 void handlePhysicsMovement() {
@@ -282,10 +312,17 @@ void applySpringDamper(const Ball& a, const Ball& b, const Spring& spring, Vecto
     force_a = Vector2Subtract(force_a, force_on_b);
 }
 
+void updateCamera(float deltaTime) {
+    Vector2 motorcycleCenter = {(motorcycle.front_wheel.position.x + motorcycle.rear_wheel.position.x) / 2.0f, (motorcycle.front_wheel.position.y + motorcycle.rear_wheel.position.y) / 2.0f};
+
+    camera.target = Vector2Lerp(camera.target, motorcycleCenter, Clamp(CAMERA_SPEED * deltaTime, 0.0f, 1.0f));
+}
+
 
 int main() {
     initializeMotorcycle();
     initializeTrack();
+    initializeCamera();
 
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Project");
     SetTargetFPS(FPS);
@@ -345,31 +382,46 @@ int main() {
             GroundSample rear_sample =
                 ground.sample(motorcycle.rear_wheel.position);
 
-            if (motorcycle.front_wheel_on_ground) {
-                TraceLog(
-                    LOG_INFO,
-                    "Front Wheel Segment: %d",
-                    front_sample.segment_index
-                );
-            }
+            // if (motorcycle.front_wheel_on_ground) {
+            //     TraceLog(
+            //         LOG_INFO,
+            //         "Front Wheel Segment: %d",
+            //         front_sample.segment_index
+            //     );
+            // }
 
-            if (motorcycle.rear_wheel_on_ground) {
-                TraceLog(
-                    LOG_INFO,
-                    "Rear Wheel Segment: %d",
-                    rear_sample.segment_index
-                );
-            }
+            // if (motorcycle.rear_wheel_on_ground) {
+            //     TraceLog(
+            //         LOG_INFO,
+            //         "Rear Wheel Segment: %d",
+            //         rear_sample.segment_index
+            //     );
+            // }
         }
 
+        // update camera
+        updateCamera(delta_time);
+
         BeginDrawing();
-        ClearBackground(WHITE);
+        ClearBackground(SKYBLUE);
+
+        BeginMode2D(camera); // for raylib camera
+        
+        // draw terrain
+        for (const SegmentGround& segment : ground.getSegments()) {
+            DrawLineEx(segment.getStart(), segment.getEnd(), 5.0f, DARKGREEN);
+        }
         
         motorcycle.Draw();
-        for (const SegmentGround& segment : ground.getSegments())
-            DrawLineEx(segment.getStart(), segment.getEnd(), 5.0f, DARKGREEN);
+
+        EndMode2D(); 
+        // now draw ui
 
         DrawText("RIGHT: Accelerate    LEFT: Reverse    R: Reset", 20, 20, 20, BLACK);
+        // debug
+        DrawText(motorcycle.front_wheel_on_ground ? "FRONT: GROUNDED" : "FRONT: AIRBORNE", 20, 80, 18, motorcycle.front_wheel_on_ground ? GREEN : RED);
+        DrawText(motorcycle.rear_wheel_on_ground ? "REAR: GROUNDED" : "REAR: AIRBORNE", 20, 105, 18, motorcycle.rear_wheel_on_ground ? GREEN : RED);
+    
 
         EndDrawing();
     }
