@@ -33,7 +33,7 @@ public:
         Vector2 control1,
         Vector2 control2,
         Vector2 end,
-        int subdivisions = 20
+        int subdivisions = 5
     ) {
         track.addBezier(
             currentPoint,
@@ -53,7 +53,7 @@ public:
     void addSmoothBezierTo(
         Vector2 control2,
         Vector2 end,
-        int subdivisions = 20
+        int subdivisions = 5
     ) {
         if (!hasPreviousDirection)
             return;

@@ -19,7 +19,7 @@ std::vector<SegmentGround> segments;
         segments.emplace_back(start, end);
     }
 
-    void addBezier(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, int subdivisions = 20) {
+    void addBezier(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, int subdivisions = 5) {
         if (subdivisions < 1)
             subdivisions = 1;
 
@@ -50,7 +50,7 @@ std::vector<SegmentGround> segments;
         hasPreviousBezier = true;
     }
 
-    void addSmoothBezier(Vector2 p2, Vector2 p3, int subdivisions = 20) {
+    void addSmoothBezier(Vector2 p2, Vector2 p3, int subdivisions = 5) {
         if (!hasPreviousBezier)
             return;
 

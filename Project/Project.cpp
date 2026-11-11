@@ -12,14 +12,16 @@ const float TIMESTEP = 1 / 120.0f;
 
 const Vector2 GRAVITY = {0, 1000};
 
-const float ENGINE_FORCE = 8000.0f;
-const float JUMP_FORCE = 250000.0f;
+const float ENGINE_FORCE = 6000.0f;
+const float JUMP_FORCE = 200000.0f;
 const float TURBO_MULTIPLIER = 3.0f;
+const float MAX_SPEED = 500.0f;
 
-const float SPRING_REST_LENGTH = 100.0f;
+const float SPRING_REST_LENGTH = 80.0f;
 const float SPRING_K = 3000.0f;
-const float SPRING_B = 80.0f;
+const float SPRING_B = 100.0f;
 const float WHEEL_DISTANCE = 100.0f;
+const float BODY_TO_WHEEL_HEIGHT = 100.0f;
 
 const float GROUND_Y = 600.0f;
 // FlatGround ground(GROUND_Y);
@@ -27,6 +29,8 @@ const float GROUND_Y = 600.0f;
 const float GROUND_FRICTION = 15.0f;
 
 const float CAMERA_SPEED = 5.0f;
+
+const int MAX_JUMP_COUNT = 2;
 
 struct Ball {
     Vector2 position;
@@ -50,24 +54,36 @@ struct Spring {
 };
 
 struct Motorcycle {
+    Vector2 position;
+    Vector2 local_up;
+    Vector2 forward;
+
     Ball body;
     Ball front_wheel;
     Ball rear_wheel;
-
+    
     Spring front_spring;
     Spring rear_spring;
-
+    
     bool front_wheel_on_ground;
-    bool rear_wheel_on_ground;
+    bool rear_wheel_on_ground; 
+    bool body_on_ground; 
+    bool debug = true;
 
     void Draw() {
-        DrawLineEx(body.position, front_wheel.position, 5.0f, GRAY);
-        DrawLineEx(body.position, rear_wheel.position, 5.0f, GRAY);
-        DrawLineEx(front_wheel.position, rear_wheel.position, 8.0f, DARKGRAY);
+        DrawLineEx(position, front_wheel.position, 5.0f, GRAY);
+        DrawLineEx(position, rear_wheel.position, 5.0f, GRAY);
+        // DrawLineEx(front_wheel.position, rear_wheel.position, 8.0f, DARKGRAY);
         
         DrawCircleV(front_wheel.position, front_wheel.radius, front_wheel.color);
         DrawCircleV(rear_wheel.position, rear_wheel.radius, rear_wheel.color);
         DrawCircleV(body.position, body.radius, body.color);
+
+        if (debug) {
+            DrawLineEx(position, Vector2Add(position, Vector2Scale(forward, 100.0f)), 5.0f, GREEN);
+            DrawLineEx(position, Vector2Add(position, Vector2Scale(local_up, 100.0f)), 5.0f, BLUE);
+        }
+        // DrawLineEx(position, local_up, 5.0f, RED);
     }
 };
 
@@ -81,7 +97,7 @@ void initializeMotorcycle() {
     Motorcycle& m = motorcycle;
     // body
     m.body.position = {300, 300};
-    m.body.radius = 25;
+    m.body.radius = 30;
     m.body.color = RED;
     m.body.mass = 10.0f;
     m.body.inverse_mass = 1.0f / m.body.mass;
@@ -92,7 +108,7 @@ void initializeMotorcycle() {
     m.front_wheel.position = {350, 380};
     m.front_wheel.radius = 25;
     m.front_wheel.color = BLACK;
-    m.front_wheel.mass = 10.0f;
+    m.front_wheel.mass = 5.0f;
     m.front_wheel.inverse_mass = 1.0f / m.front_wheel.mass;
     m.front_wheel.acceleration = Vector2Zero();
     m.front_wheel.velocity = Vector2Zero();
@@ -100,7 +116,7 @@ void initializeMotorcycle() {
     m.rear_wheel.position = {250, 380};
     m.rear_wheel.radius = 25;
     m.rear_wheel.color = BLACK;
-    m.rear_wheel.mass = 10.0f;
+    m.rear_wheel.mass = 5.0f;
     m.rear_wheel.inverse_mass = 1.0f / m.rear_wheel.mass;
     m.rear_wheel.acceleration = Vector2Zero();
     m.rear_wheel.velocity = Vector2Zero();
@@ -121,6 +137,9 @@ void initializeMotorcycle() {
     m.front_wheel_on_ground = false;
     m.rear_wheel_on_ground = false;
 
+    m.position = m.body.position;
+    m.forward = Vector2Normalize(Vector2Subtract(m.front_wheel.position, m.rear_wheel.position));
+    m.local_up = Vector2Normalize({-m.forward.y, m.forward.x});
     // m.wheel_to_wheel_suspension.spring_start = m.rear_wheel.position;
     // m.wheel_to_wheel_suspension.spring_end = m.front_wheel.position;
     // m.wheel_to_wheel_suspension.rest_length = WHEEL_DISTANCE;
@@ -144,12 +163,27 @@ void initializeCamera() {
 
     c.offset = {WINDOW_WIDTH / 2.0f, WINDOW_HEIGHT / 2.0f - 20.0f};
 
-    Vector2 motorcycleCenter = {(motorcycle.front_wheel.position.x + motorcycle.rear_wheel.position.x) / 2.0f, (motorcycle.front_wheel.position.y + motorcycle.rear_wheel.position.y) / 2.0f};
-
-    c.target = motorcycleCenter;
+    c.target = m.position;
 
     c.rotation = 0.0f;
-    c.zoom = 1.0f;
+    c.zoom = 0.5f;
+}
+
+void resolveMotorcyclePositionAndOrientation() {
+    Motorcycle& m = motorcycle;
+
+    m.position = m.body.position;
+    m.forward = Vector2Normalize(Vector2Subtract(m.front_wheel.position, m.rear_wheel.position));
+    m.local_up = Vector2Normalize({m.forward.y, -m.forward.x});
+}
+
+
+void clampVelocity(Vector2& v) {
+    float squared_magnitude = Vector2DotProduct(v, v);
+    Vector2 norm = Vector2Normalize(v);
+
+    if (squared_magnitude >= MAX_SPEED * MAX_SPEED)
+        v = Vector2Scale(norm, MAX_SPEED);
 }
 
 void handlePhysicsMovement() {
@@ -161,15 +195,14 @@ void handlePhysicsMovement() {
     m.front_wheel.position = Vector2Add(m.front_wheel.position, Vector2Scale(m.front_wheel.velocity, TIMESTEP));
 
     m.rear_wheel.velocity = Vector2Add(m.rear_wheel.velocity, Vector2Scale(m.rear_wheel.acceleration, TIMESTEP));
+
     m.rear_wheel.position = Vector2Add(m.rear_wheel.position, Vector2Scale(m.rear_wheel.velocity, TIMESTEP));
 
-    // m.wheel_to_wheel_suspension.spring_start = m.rear_wheel.position;
-    // m.wheel_to_wheel_suspension.spring_end = m.front_wheel.position;
-    // m.front_spring.spring_start = m.body.position;
-    // m.front_spring.spring_end = m.front_wheel.position;
+    resolveMotorcyclePositionAndOrientation();
+}
 
-    // m.rear_spring.spring_start = m.body.position;
-    // m.rear_spring.spring_end = m.rear_wheel.position;
+void addDirectionForce(Vector2& forces, const Vector2& direction, float engine_force) {
+    forces = Vector2Add(forces, Vector2Scale(direction, engine_force));
 }
 
 void solveDistanceConstraint(Ball& a, Ball& b, float rest_length) {
@@ -238,6 +271,7 @@ void handleGroundCollision(const Ground& ground) {
 
     resolveWheelGroundCollision(m.front_wheel, m.front_wheel_on_ground, ground);
     resolveWheelGroundCollision(m.rear_wheel, m.rear_wheel_on_ground, ground);
+    resolveWheelGroundCollision(m.body, m.body_on_ground, ground);
 }
 
 void applyGroundFriction(Ball& wheel, bool on_ground, const Ground& ground) {
@@ -307,24 +341,17 @@ void updateCamera(float deltaTime) {
         float trackStart = segments.front().getStart().x;
         float trackEnd = segments.back().getEnd().x;
 
-        float halfViewWidth =
-            GetScreenWidth() / (2.0f * camera.zoom);
+        float halfViewWidth = GetScreenWidth() / (2.0f * camera.zoom);
 
         float minCameraX = trackStart + halfViewWidth;
         float maxCameraX = trackEnd - halfViewWidth;
 
-        if (minCameraX > maxCameraX) {
+        if (minCameraX > maxCameraX) 
             camera.target.x = (trackStart + trackEnd) / 2.0f;
-        }
-        else {
-            motorcycleCenter.x = Clamp(
-                motorcycleCenter.x,
-                minCameraX,
-                maxCameraX
-            );
-        }
-    }
 
+        else 
+            motorcycleCenter.x = Clamp(motorcycleCenter.x, minCameraX, maxCameraX);
+    }
 
     camera.target = Vector2Lerp(camera.target, motorcycleCenter, Clamp(CAMERA_SPEED * deltaTime, 0.0f, 1.0f));
 }
@@ -337,6 +364,8 @@ int main() {
 
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Project");
     SetTargetFPS(FPS);
+
+    int jump_count = 0;
 
     float accumulator = 0;
 
@@ -357,21 +386,26 @@ int main() {
             Vector2 front_wheel_forces = Vector2Scale(GRAVITY, motorcycle.front_wheel.mass);
             Vector2 rear_wheel_forces = Vector2Scale(GRAVITY, motorcycle.rear_wheel.mass);
 
+            bool isAirborne = !motorcycle.front_wheel_on_ground && !motorcycle.rear_wheel_on_ground;
+            
             // front suspension
             applySpringDamper(motorcycle.body, motorcycle.front_wheel, motorcycle.front_spring, body_forces, front_wheel_forces);
             // fear suspension
             applySpringDamper(motorcycle.body, motorcycle.rear_wheel, motorcycle.rear_spring, body_forces, rear_wheel_forces);
-
+            
+            float mult = isAirborne ? 0.35f : 1.0f;
             if ((IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D)))
-                rear_wheel_forces.x += IsKeyDown(KEY_LEFT_SHIFT) ? ENGINE_FORCE * TURBO_MULTIPLIER : ENGINE_FORCE;
+                addDirectionForce(rear_wheel_forces, motorcycle.forward, IsKeyDown(KEY_LEFT_SHIFT) ? ENGINE_FORCE * TURBO_MULTIPLIER  * mult : ENGINE_FORCE * mult);
 
             if ((IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A)))
-                rear_wheel_forces.x -= IsKeyDown(KEY_LEFT_SHIFT) ? ENGINE_FORCE * TURBO_MULTIPLIER : ENGINE_FORCE;
+                addDirectionForce(rear_wheel_forces, motorcycle.forward, IsKeyDown(KEY_LEFT_SHIFT) ? -ENGINE_FORCE * TURBO_MULTIPLIER  * mult : -ENGINE_FORCE * mult);
             
-            if (IsKeyPressed(KEY_SPACE)) {
-                body_forces.y -= JUMP_FORCE;
-                front_wheel_forces.y -= JUMP_FORCE;
-                rear_wheel_forces.y -= JUMP_FORCE;
+            if (IsKeyPressed(KEY_SPACE) && jump_count <= MAX_JUMP_COUNT) {
+                addDirectionForce(body_forces, motorcycle.local_up, JUMP_FORCE);
+                addDirectionForce(rear_wheel_forces, motorcycle.local_up, JUMP_FORCE);
+                addDirectionForce(front_wheel_forces, motorcycle.local_up, JUMP_FORCE);
+
+                jump_count++;
             }
 
             motorcycle.body.acceleration = Vector2Scale(body_forces, motorcycle.body.inverse_mass);
@@ -380,10 +414,15 @@ int main() {
 
             handlePhysicsMovement();
             solveDistanceConstraint(motorcycle.rear_wheel, motorcycle.front_wheel, WHEEL_DISTANCE);
+            // solveDistanceConstraint(motorcycle.body, motorcycle.rear_wheel, BODY_TO_WHEEL_HEIGHT);
+            // solveDistanceConstraint(motorcycle.body, motorcycle.front_wheel, BODY_TO_WHEEL_HEIGHT);
             handleGroundCollision(ground);
             
             applyGroundFriction(motorcycle.front_wheel, motorcycle.front_wheel_on_ground, ground);
             applyGroundFriction(motorcycle.rear_wheel, motorcycle.rear_wheel_on_ground, ground);
+
+            if (motorcycle.front_wheel_on_ground && motorcycle.rear_wheel_on_ground)
+                jump_count = 0;
 
             accumulator -= TIMESTEP;
 
@@ -409,6 +448,7 @@ int main() {
             //     );
             // }
         }
+
 
         // update camera
         updateCamera(delta_time);

@@ -9,6 +9,8 @@ struct Course {
     float finishX;
 };
 
+int subdivisions = 10;
+
 inline Course createBeginnerCourse() {
     TrackBuilder builder({100.0f, 500.0f});
 
@@ -20,20 +22,20 @@ inline Course createBeginnerCourse() {
         {600.0f, 500.0f},
         {650.0f, 400.0f},
         {800.0f, 420.0f},
-        30
+        subdivisions
     );
 
     builder.addSmoothBezierTo(
         {1000.0f, 350.0f},
         {1200.0f, 430.0f},
-        30
+        subdivisions
     );
 
     // 3. Steeper uphill section
     builder.addSmoothBezierTo(
         {1450.0f, 550.0f},
         {1650.0f, 450.0f},
-        30
+        subdivisions
     );
 
     // 4. Uneven terrain
@@ -43,20 +45,20 @@ inline Course createBeginnerCourse() {
         {1900.0f, 450.0f},
         {1900.0f, 330.0f},
         {2050.0f, 350.0f},
-        30
+        5
     );
 
     builder.addSmoothBezierTo(
         {2250.0f, 300.0f},
         {2400.0f, 430.0f},
-        30
+        subdivisions
     );
 
     // 5. Final downhill stretch
     builder.addSmoothBezierTo(
         {2600.0f, 550.0f},
         {2800.0f, 500.0f},
-        30
+        subdivisions
     );
 
     // 6. Finish platform
