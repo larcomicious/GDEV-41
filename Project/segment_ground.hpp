@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "ground.h"
+#include "ground.hpp"
 #include <raymath.h>
 
 class SegmentGround : public Ground {

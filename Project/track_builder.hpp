@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "Track.h"
+#include "track.hpp"
 #include "raymath.h"
 
 class TrackBuilder {

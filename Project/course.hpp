@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "track_builder.h"
+#include "track_builder.hpp"
 
 struct Course {
     Track track;
@@ -9,7 +9,7 @@ struct Course {
     float finishX;
 };
 
-int subdivisions = 10;
+int subdivisions = 20;
 
 inline Course createBeginnerCourse() {
     TrackBuilder builder({100.0f, 500.0f});

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ground.h"
+#include "ground.hpp"
 
 class FlatGround : public Ground {
 private:

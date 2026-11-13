@@ -4,8 +4,8 @@
 #include <vector>
 #include <limits>
 
-#include "ground.h"
-#include "segment_ground.h"
+#include "ground.hpp"
+#include "segment_ground.hpp"
 
 class Track : public Ground {
 private:
