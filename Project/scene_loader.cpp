@@ -5,7 +5,8 @@
 #include "scene_2_game.hpp"
 
 int main() {
-    InitWindow(800, 600, "Scene and Resource Management");
+    InitWindow(1080, 720, "Porject - Gimena Tan");
+    SetTargetFPS(60);
 
     SceneManager scene_manager;
 
