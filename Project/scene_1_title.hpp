@@ -4,6 +4,7 @@
 #include <raylib.h>
 
 #include "scene_manager.hpp"
+#include "scene_ids.hpp"
 
 class TitleScene : public Scene {
     Texture raylib_logo;
@@ -18,14 +19,16 @@ public:
     void Update() override {
         if (IsKeyPressed(KEY_ENTER)) {
             if (GetSceneManager() != nullptr) {
-                GetSceneManager()->SwitchScene(1);
+                GetSceneManager()->SwitchScene(SCENE_LEVEL_SELECT);
             }
         }
     }
 
     void Draw() override {
         DrawTexturePro(raylib_logo, {0, 0, 256, 256}, {300, 100, 200, 200}, {0, 0}, 0.0f, WHITE);
-        DrawText("Press ENTER", 300, 325, 30, BLACK);
+
+        DrawText("MOTORCYCLE GAME", 340, 380, 40, BLACK);
+        DrawText("PRESS ENTER TO START", 390, 460, 24, DARKGRAY);
     }
 };
 
