@@ -24,11 +24,11 @@ struct Spring {
 };
 
 namespace {
-    constexpr float SPRING_REST_LENGTH = 80.0f;
-    constexpr float SPRING_K = 3000.0f;
-    constexpr float SPRING_B = 100.0f;
-    constexpr float WHEEL_DISTANCE = 100.0f;
-    constexpr float BODY_TO_WHEEL_HEIGHT = 100.0f;
+    constexpr float spring_rest_length = 98.0f;
+    constexpr float spring_k = 1500.0f;
+    constexpr float spring_b = 100.0f;
+    constexpr float wheel_distance = 100.0f;
+    constexpr float body_to_wheel_height = 100.0f;
 }
 
 struct Motorcycle {
@@ -79,15 +79,15 @@ struct Motorcycle {
         // suspensions
         front_spring.spring_start = body.position;
         front_spring.spring_end = front_wheel.position;
-        front_spring.rest_length = SPRING_REST_LENGTH;
-        front_spring.b = SPRING_B;
-        front_spring.k = SPRING_K;
+        front_spring.rest_length = spring_rest_length;
+        front_spring.b = spring_b;
+        front_spring.k = spring_k;
 
         rear_spring.spring_start = body.position;
         rear_spring.spring_end = rear_wheel.position;
-        rear_spring.rest_length = SPRING_REST_LENGTH;
-        rear_spring.b = SPRING_B;
-        rear_spring.k = SPRING_K;
+        rear_spring.rest_length = spring_rest_length;
+        rear_spring.b = spring_b;
+        rear_spring.k = spring_k;
 
         front_wheel_on_ground = false;
         rear_wheel_on_ground = false;
@@ -98,7 +98,7 @@ struct Motorcycle {
         local_up = Vector2Normalize({forward.y, -forward.x});
         // m.wheel_to_wheel_suspension.spring_start = m.rear_wheel.position;
         // m.wheel_to_wheel_suspension.spring_end = m.front_wheel.position;
-        // m.wheel_to_wheel_suspension.rest_length = WHEEL_DISTANCE;
+        // m.wheel_to_wheel_suspension.rest_length = wheel_distance;
         // m.wheel_to_wheel_suspension.k = WHEEL_TO_WHEEL_STIFFNESS;
         // m.wheel_to_wheel_suspension.b = WHEEL_TO_WHEEL_DAMPNESS;
     }

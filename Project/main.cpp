@@ -17,7 +17,7 @@ const float TIMESTEP = 1 / 120.0f;
 const float GROUND_Y = 600.0f;
 // FlatGround ground(GROUND_Y);
 // SegmentGround ground({100.0f, 700.0f}, {900.0f, 550.0f});
-const float GROUND_FRICTION = 15.0f;
+const float GROUND_FRICTION = 5.0f;
 
 const float CAMERA_SPEED = 5.0f;
 
@@ -66,7 +66,7 @@ void handlePhysicsMovement() {
 
 
 void resolveWheelGroundCollision(Ball& wheel, bool& on_ground, const Ground& ground) {
-    const float CONTACT_TOLERANCE = 0.01f;
+    const float CONTACT_TOLERANCE = 0.5f;
 
     GroundSample sample = ground.sample(wheel.position);
     if (!sample.valid) {
@@ -186,6 +186,7 @@ int main() {
 
             // ground collision
             handleGroundCollision(ground);
+            solveBodyFrameLimit(motorcycle);
 
             // ground friction
             applyGroundFriction(motorcycle.front_wheel, motorcycle.front_wheel_on_ground, ground);
