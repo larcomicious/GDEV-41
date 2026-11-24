@@ -144,27 +144,12 @@ public:
 
         // terrain
         for (const SegmentGround& segment : ground.getSegments()) {
-            DrawLineEx(
-                segment.getStart(),
-                segment.getEnd(),
-                5.0f,
-                DARKGREEN
-            );
+            DrawLineEx(segment.getStart(), segment.getEnd(), 5.0f, DARKGREEN);
         }
         // start
-        DrawLineEx(
-            {course.startPosition.x, course.startPosition.y - 120.0f},
-            course.startPosition,
-            5.0f,
-            GREEN
-        );
+        DrawLineEx({course.startPosition.x, course.startPosition.y - 120.0f}, course.startPosition, 5.0f, GREEN);
         // finish
-        DrawLineEx(
-            {course.finishX, 380.0f},
-            {course.finishX, 500.0f},
-            5.0f,
-            RED
-        );
+        DrawLineEx({course.finishX, 380.0f}, {course.finishX, 500.0f},5.0f, RED);
 
         motorcycle.draw();
         EndMode2D();
@@ -172,7 +157,7 @@ public:
         // UI
         DrawText(TextFormat("LEVEL %d", level_number), 20, 20, 24, BLACK);
         DrawText("RIGHT/D: Accelerate    LEFT/A: Reverse    SHIFT: Nitro    R: Reset", 20, 55, 18, BLACK);
-        
+
         // debug
         // DrawText(motorcycle.front_wheel_on_ground ? "FRONT: GROUNDED" : "FRONT: AIRBORNE", 20, 100, 18, motorcycle.front_wheel_on_ground ? GREEN : RED);
         // DrawText(motorcycle.rear_wheel_on_ground ? "REAR: GROUNDED" : "REAR: AIRBORNE", 20, 125, 18, motorcycle.rear_wheel_on_ground ? GREEN : RED);
