@@ -17,10 +17,12 @@ namespace motorcycle_physics {
     constexpr float airborne_engine_multiplier = 0.35f;
 
     constexpr float wheel_distance = 100.0f;
+    constexpr float min_frame_height = 55.0f;
+    constexpr float max_frame_height = 115.0f;
 
-    constexpr float air_rotation_strength = 80000.0f;
-    constexpr float air_rotation_damping = 20000.0f;
-    constexpr float air_rotation_control = 60000.0f;
+    constexpr float air_rotation_strength = 3.2f;
+    constexpr float air_rotation_damping = 0.8f;
+    constexpr float air_rotation_control = 2.4f;
 
     constexpr int max_jump_count = 2;
 }
@@ -80,6 +82,7 @@ inline void solveDistanceConstraint(Ball& a, Ball& b, float rest_length) {
     b.velocity = Vector2Subtract(b.velocity, Vector2Scale(velocity_correction, b.inverse_mass));
 }
 
+
 inline void applyAirStabilization(const Motorcycle& m, Vector2& front_wheel_forces, Vector2& rear_wheel_forces, float rotation_input) {
     Vector2 wheel_axis = Vector2Subtract(m.front_wheel.position, m.rear_wheel.position);
     float distance = Vector2Length(wheel_axis);
@@ -87,24 +90,31 @@ inline void applyAirStabilization(const Motorcycle& m, Vector2& front_wheel_forc
     if (distance < 0.0001f)
         return;
 
-    Vector2 axis = Vector2Normalize(wheel_axis);
-
-    float angle = std::atan2f(axis.y, axis.x);
+    Vector2 axis = Vector2Scale(wheel_axis, 1.0f / distance);
+    float angle = std::atan2(axis.y, axis.x); //relative to horizontal
 
     Vector2 relative_velocity = Vector2Subtract(m.front_wheel.velocity, m.rear_wheel.velocity);
+
+    // angular velocity of the wheel axis
     float angular_velocity = (wheel_axis.x * relative_velocity.y - wheel_axis.y * relative_velocity.x) / (distance * distance);
 
-    float torque;
+    float front_mass = m.front_wheel.mass;
+    float rear_mass = m.rear_wheel.mass;
 
-    // player controls rotation
-    if (rotation_input != 0.0f) {
-        torque = motorcycle_physics::air_rotation_control * rotation_input - motorcycle_physics::air_rotation_damping * angular_velocity;
-    }
-    // no input, return to horizontal.
-    else {
-        torque = -motorcycle_physics::air_rotation_strength * angle - motorcycle_physics::air_rotation_damping * angular_velocity;
-    }
+    float reduced_mass = (front_mass * rear_mass) / (front_mass + rear_mass);
+    float rotational_inertia = reduced_mass * distance * distance;
 
+    float angular_acceleration;
+
+    if (rotation_input != 0.0f)
+        angular_acceleration = motorcycle_physics::air_rotation_control * rotation_input - motorcycle_physics::air_rotation_damping * angular_velocity;
+    else 
+        angular_acceleration = -motorcycle_physics::air_rotation_strength * angle - motorcycle_physics::air_rotation_damping * angular_velocity;
+
+    // angular acceleration to tork
+    float torque = angular_acceleration * rotational_inertia;
+
+    // torque to opposing wheel forces
     float force_magnitude = torque / distance;
 
     Vector2 perpendicular = {-axis.y, axis.x};
@@ -178,3 +188,39 @@ inline void updateMotorcyclePhysics(Motorcycle& motorcycle, MotorcycleInput& inp
 
     solveDistanceConstraint(motorcycle.rear_wheel, motorcycle.front_wheel, motorcycle_physics::wheel_distance);
 }
+
+
+inline void solveBodyFrameLimit(Motorcycle& m) {
+
+    m.updateOrientation();
+
+    Vector2 wheel_midpoint = Vector2Scale(Vector2Add(m.front_wheel.position, m.rear_wheel.position), 0.5f);
+    Vector2 wheel_velocity = Vector2Scale(Vector2Add(m.front_wheel.velocity, m.rear_wheel.velocity), 0.5f);
+
+    float frame_height = Vector2DotProduct(Vector2Subtract(m.body.position, wheel_midpoint), m.local_up);
+    float relative_speed = Vector2DotProduct(Vector2Subtract(m.body.velocity, wheel_velocity),m.local_up); // relative to frame's local up
+
+    // prevent supa big suspension compression
+    if (frame_height < motorcycle_physics::min_frame_height) {
+        float correction = motorcycle_physics::min_frame_height - frame_height;
+        m.body.position = Vector2Add(m.body.position, Vector2Scale(m.local_up, correction));
+
+        // remove velocity
+        if (relative_speed < 0.0f) 
+            m.body.velocity = Vector2Subtract(m.body.velocity, Vector2Scale(m.local_up, relative_speed));
+    }
+
+    // prevent supa big suspension extension
+    else if (frame_height > motorcycle_physics::max_frame_height) {
+        float correction = motorcycle_physics::max_frame_height - frame_height;
+        m.body.position = Vector2Add(m.body.position, Vector2Scale(m.local_up, correction));
+
+        if (relative_speed > 0.0f) {
+            m.body.velocity = Vector2Subtract(
+                m.body.velocity,
+                Vector2Scale(m.local_up, relative_speed)
+            );
+        }
+    }
+}
+
