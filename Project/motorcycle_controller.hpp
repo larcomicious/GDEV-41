@@ -22,10 +22,10 @@ inline MotorcycleInput readMotorcycleInput() {
         input.throttle -= 1.0f;
 
     // air rotation
-    if (IsKeyDown(KEY_W))
+    if (IsKeyDown(KEY_W) || IsKeyDown(KEY_A))
         input.rotation -= 1.0f;
 
-    if (IsKeyDown(KEY_S))
+    if (IsKeyDown(KEY_S) || IsKeyDown(KEY_D))
         input.rotation += 1.0f;
 
     input.nitro_active = IsKeyDown(KEY_LEFT_SHIFT);

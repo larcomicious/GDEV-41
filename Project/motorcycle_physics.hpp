@@ -143,19 +143,20 @@ inline void updateMotorcyclePhysics(Motorcycle& motorcycle, MotorcycleInput& inp
 
     if (is_airborne) {
 
-        float total_mass = motorcycle.body.mass + motorcycle.front_wheel.mass + motorcycle.rear_wheel.mass;
+        // float total_mass = motorcycle.body.mass + motorcycle.front_wheel.mass + motorcycle.rear_wheel.mass;
 
-        if (total_mass > 0.0f) {
-            addDirectionForce(body_forces, motorcycle.forward, total_engine_force * motorcycle.body.mass / total_mass);
-            addDirectionForce(front_wheel_forces, motorcycle.forward, total_engine_force * motorcycle.front_wheel.mass / total_mass);
-            addDirectionForce(rear_wheel_forces, motorcycle.forward, total_engine_force * motorcycle.rear_wheel.mass / total_mass);
-        }
+        // if (total_mass > 0.0f) {
+        //     addDirectionForce(body_forces, motorcycle.forward, total_engine_force * motorcycle.body.mass / total_mass);
+        //     addDirectionForce(front_wheel_forces, motorcycle.forward, total_engine_force * motorcycle.front_wheel.mass / total_mass);
+        //     addDirectionForce(rear_wheel_forces, motorcycle.forward, total_engine_force * motorcycle.rear_wheel.mass / total_mass);
+        // }
 
         applyAirStabilization(motorcycle, front_wheel_forces, rear_wheel_forces, input.rotation);
     }
     else {
         // grounded, rear-wheel only
-        addDirectionForce(rear_wheel_forces, motorcycle.forward, total_engine_force);
+        if (motorcycle.rear_wheel_on_ground)
+            addDirectionForce(rear_wheel_forces, motorcycle.forward, total_engine_force);
     }
 
     // if (is_airborne) {

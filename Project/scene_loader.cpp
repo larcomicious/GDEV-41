@@ -5,7 +5,7 @@
 #include "scene_2_game.hpp"
 
 int main() {
-    InitWindow(1080, 720, "Porject - Gimena Tan");
+    InitWindow(1080, 720, "Project - Gimena Tan");
     SetTargetFPS(60);
 
     SceneManager scene_manager;
