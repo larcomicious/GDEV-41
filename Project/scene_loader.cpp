@@ -19,7 +19,7 @@ int main() {
     GameSession session; // shared session
 
     // configs
-    const LevelConfig level1_config = {1, &createBeginnerCourse};
+    const LevelConfig level1_config = {1, &createBeginnerCourse, 5.0f, true, 1500.0f};
     const LevelConfig level2_config = {2, &createBeginnerCourse};
     const LevelConfig level3_config = {3, &createBeginnerCourse};
 

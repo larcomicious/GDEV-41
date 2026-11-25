@@ -30,10 +30,13 @@ public:
     }
 
     void Draw() override {
-        DrawText("LEVEL COMPLETE!", 350, 160, 40, BLACK);
+        bool completed = session.last_outcome == LevelOutcome::COMPLETED;
+        DrawText(completed ? "LEVEL COMPLETE!" : "LEVEL FAILED", 350, 160, 40, completed ? GREEN : RED);
+        DrawText(TextFormat("LEVEL: %d", session.last_result_level), 420, 260, 28, DARKGRAY);
 
-        DrawText(TextFormat("LEVEL: %d", session.last_completed_level), 420, 290, 28, DARKGRAY);
-        DrawText(TextFormat("TIME: %.2f SECONDS", session.last_completion_time), 365, 350, 28, DARKGRAY);
-        DrawText("PRESS ENTER TO RETURN TO LEVEL SELECT", 270, 500, 22, BLACK);
+        DrawText(TextFormat("TIME: %.2f SECONDS", session.last_result_time), 365, 320, 28, DARKGRAY);
+        DrawText(session.last_result_reason, 420, 390, 24, DARKGRAY);
+
+        DrawText("[ENTER] LEVEL SELECT", 375, 500, 22, BLACK);
     }
 };

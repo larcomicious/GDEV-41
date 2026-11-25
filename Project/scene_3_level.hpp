@@ -27,7 +27,8 @@ private:
         READY,
         PLAYING,
         PAUSED,
-        COMPLETED
+        COMPLETED,
+        FAILED
     }; 
 
     static constexpr float TIMESTEP = 1.0f / 120.0f;
@@ -85,9 +86,40 @@ private:
         camera.target = Vector2Lerp(camera.target, motorcycleCenter, Clamp(CAMERA_SPEED * deltaTime, 0.0f, 1.0f));
     }
 
-    void completeLevel() {
-        session.last_completed_level = config.level_number;
-        session.last_completion_time = elapsed_time;
+    void checkLevelComplete() {
+        if (motorcycle.front_wheel.position.x >= course.finishX) {
+            finishLevel(LevelOutcome::COMPLETED, "Level completed eyyy");
+            return;
+        }
+
+        if (config.use_fall_limit) {
+            if (motorcycle.body.position.y >= config.fall_limit_y || motorcycle.front_wheel.position.y >= config.fall_limit_y || motorcycle.rear_wheel.position.y >= config.fall_limit_y) {
+                finishLevel(LevelOutcome::FAILED, "try NOT to fall bro");
+                return;
+            }
+        }
+
+        if (config.time_limit_seconds > 0.0f && elapsed_time >= config.time_limit_seconds) {
+            finishLevel(LevelOutcome::FAILED, "u too slow bro");
+            return;
+        }
+    }
+
+    void finishLevel(LevelOutcome outcome, const char* reason) {
+        if (level_state == LevelState::COMPLETED || level_state == LevelState::FAILED) 
+            return;
+
+        level_state = (outcome == LevelOutcome::COMPLETED) ? LevelState::COMPLETED : LevelState::FAILED;
+
+        session.last_result_level = config.level_number;
+        session.last_result_time = elapsed_time;
+        session.last_outcome = outcome;
+        session.last_result_reason = reason;
+
+        if (outcome == LevelOutcome::COMPLETED) { // add outcome when player winz
+            session.last_completed_level = config.level_number;
+            session.last_completion_time = elapsed_time;
+        }
 
         SceneManager* manager = GetSceneManager();
 
@@ -176,13 +208,9 @@ public:
 
             accumulator -= TIMESTEP;
         }
-        
-        // basic level complete check
-        if (motorcycle.front_wheel.position.x >= course.finishX) {
-            completeLevel();
-            return;
-        }
 
+        checkLevelComplete();
+    
         updateCamera(delta_time);
     }
 
@@ -205,7 +233,10 @@ public:
         // UI
         DrawText(TextFormat("LEVEL %d", config.level_number), 20, 20, 24, BLACK);
         DrawText(TextFormat("TIME: %.2f", elapsed_time), 20, 55, 22, BLACK);
-        DrawText("RIGHT/D: Accelerate    LEFT/A: Reverse", 20, 90, 18, BLACK);
+        if (config.time_limit_seconds > 0.0f) 
+            DrawText(TextFormat("/ %.2f", config.time_limit_seconds), 150, 55, 22, BLACK);
+        
+        DrawText("RIGHT/D: Accelerate    LEFT/A: Reverse    SHIFT: Nitro", 20, 90, 18, BLACK);
         DrawText("P: Pause    R: Restart", 20, 115, 18, BLACK);
 
         // debug
