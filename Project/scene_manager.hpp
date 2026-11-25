@@ -88,6 +88,8 @@ public:
 // Resource manager implemented as a singleton
 class ResourceManager {
     std::unordered_map<std::string, Texture> textures;
+    std::unordered_map<std::string, Font> fonts;
+    static constexpr int FONT_LOAD_SIZE = 96; 
 
     ResourceManager() {}
 
@@ -123,6 +125,27 @@ public:
         }
 
         textures.clear();
+    }
+
+    Font GetFont(const std::string& path) {
+        if (fonts.find(path) == fonts.end()) {
+            std::cout << "Loaded font " << path << " from Disk" << std::endl;
+            Font font = LoadFontEx(path.c_str(), FONT_LOAD_SIZE, nullptr, 0);
+            fonts[path] = font;
+        }
+        else {
+            std::cout << "Font Resource Already Loaded" << std::endl;
+        }
+
+        return fonts[path];
+    }
+
+    void UnloadAllFonts() {
+        for (auto& it : fonts) {
+            UnloadFont(it.second);
+        }
+
+        fonts.clear();
     }
 };
 

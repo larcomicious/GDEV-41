@@ -74,6 +74,7 @@ int main() {
     }
 
     ResourceManager::GetInstance()->UnloadAllTextures();
+    ResourceManager::GetInstance()->UnloadAllFonts();
 
     CloseWindow();
 

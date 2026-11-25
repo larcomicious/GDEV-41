@@ -15,6 +15,9 @@ class LeaderboardScene : public Scene {
     GameSession& session;
     Leaderboard leaderboard;
 
+    Texture leaderboard_screen;
+    Font ui_font;
+
     std::string name;
     bool entering_name = false;
     int highlight_index = -1;
@@ -49,6 +52,9 @@ public:
     }
 
     void Begin() override {
+        leaderboard_screen = ResourceManager::GetInstance()->GetTexture("screen_leaderboard.png");
+        ui_font = ResourceManager::GetInstance()->GetFont("KNYuanmo-Regular.ttf");
+
         leaderboard.load();
 
         name.clear();
@@ -80,39 +86,48 @@ public:
 
     void Draw() override {
         bool completed = session.last_outcome == LevelOutcome::COMPLETED;
-        DrawText(completed ? "LEVEL COMPLETE!" : "LEVEL FAILED", 350, 160, 40, completed ? GREEN : RED);
-        DrawText(TextFormat("LEVEL: %d", session.last_result_level), 420, 260, 28, DARKGRAY);
+        
+        if (completed)
+            DrawTextureV(leaderboard_screen, {0, 0}, YELLOW);
+        else
+            DrawTextureV(leaderboard_screen, {0, 0}, RED);
+        
+        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0,0,0,150});
 
-        DrawText(TextFormat("TIME: %.2f SECONDS", session.last_result_time), 365, 320, 28, DARKGRAY);
-        DrawText(session.last_result_reason, 420, 390, 24, DARKGRAY);
+        DrawTextEx(ui_font, completed ? "LEVEL COMPLETE!" : "LEVEL FAILED", {350, 160}, 40, 2, completed ? GREEN : RED);    
+        DrawTextEx(ui_font, TextFormat("LEVEL: %d", session.last_result_level), {420, 260}, 28, 2, YELLOW);
+
+
+        DrawTextEx(ui_font, TextFormat("TIME: %.2f SECONDS", session.last_result_time), {365, 320}, 28, 2, YELLOW);
+        DrawTextEx(ui_font, session.last_result_reason, {420, 390}, 24, 2, YELLOW);
 
         if (entering_name) {
-            DrawText("NEW TOP TIME! ENTER YOUR NAME:", 340, 440, 22, BLACK);
+            DrawTextEx(ui_font, "EYYY NEW TOP TIME! ENTER YOUR NAME:", {340, 440}, 22, 2, YELLOW);
+            DrawRectangleLines(380, 480, 320, 44, YELLOW);
 
-            DrawRectangleLines(380, 480, 320, 44, BLACK);
             const char* cursor = ((int)(GetTime() * 2.0) % 2 == 0) ? "_" : "";
-            DrawText(TextFormat("%s%s", name.c_str(), cursor), 392, 488, 28, BLACK);
+            DrawTextEx(ui_font, TextFormat("%s%s", name.c_str(), cursor), {392, 488}, 28, 2, YELLOW);
 
-            DrawText("[ENTER] CONFIRM", 410, 650, 22, BLACK);
+            DrawTextEx(ui_font, "[ENTER] CONFIRM", {410, 650}, 22, 2, YELLOW);
             return;
         }
 
         // best times for this level
-        DrawText(TextFormat("TOP TIMES - LEVEL %d", session.last_result_level), 390, 430, 22, BLACK);
+        DrawTextEx(ui_font, TextFormat("TOP SCORERS - LEVEL %d", session.last_result_level), {390, 430}, 22, 2, YELLOW);
 
         const auto& entries = leaderboard.getEntries(session.last_result_level);
 
         if (entries.empty())
-            DrawText("NO TIMES YET", 440, 470, 20, GRAY);
+            DrawTextEx(ui_font, "NO TIMES YET", {440, 470}, 20, 2, YELLOW);
 
         for (size_t i = 0; i < entries.size(); i++) {
-            Color color = ((int)i == highlight_index) ? GOLD : DARKGRAY;
+            Color color = ((int)i == highlight_index) ? GREEN : YELLOW;
             int y = 470 + (int)i * 30;
 
-            DrawText(TextFormat("%d. %s", (int)i + 1, entries[i].name.c_str()), 380, y, 22, color);
-            DrawText(TextFormat("%.2f s", entries[i].time), 620, y, 22, color);
+            DrawTextEx(ui_font, TextFormat("%d. %s", (int)i + 1, entries[i].name.c_str()), {380, (float)y}, 22, 2, color);
+            DrawTextEx(ui_font, TextFormat("%.2f s", entries[i].time), {620, (float)y}, 22, 2, color);
         }
 
-        DrawText("[ENTER] LEVEL SELECT", 375, 650, 22, BLACK);
+        DrawTextEx(ui_font, "[ENTER] LEVEL SELECT", {375, 650}, 22, 2, YELLOW);
     }
 };
