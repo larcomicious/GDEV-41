@@ -219,6 +219,7 @@ public:
     }
 
     void End() override {
+        StopSound(engine_sound);
     }
 
     void Update() override {
