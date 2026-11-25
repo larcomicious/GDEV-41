@@ -20,9 +20,9 @@ int main() {
 
     // configs
     // const LevelConfig level1_config = {1, &createLevelOneCourse, 5.0f, true, 1500.0f};
-    const LevelConfig level1_config = {1, &createLevelOneCourse};
-    const LevelConfig level2_config = {2, &createLevelTwoCourse};
-    const LevelConfig level3_config = {3, &createLevelThreeCourse};
+    const LevelConfig level1_config = {1, &createLevelOneCourse, 0.0f, true, 1500.0f};
+    const LevelConfig level2_config = {2, &createLevelTwoCourse, 0.0f, true, 5000.0f};
+    const LevelConfig level3_config = {3, &createLevelThreeCourse, 0.0f, true, 8000.0f};
 
     TitleScene title_scene;
     LevelSelectScene level_select_scene(session);

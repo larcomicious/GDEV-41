@@ -22,9 +22,7 @@ class LevelSelectScene : public Scene {
     }
 
 public:
-    explicit LevelSelectScene(GameSession& session)
-        : session(session) {
-    }
+    explicit LevelSelectScene(GameSession& session) : session(session) {}
 
     void Begin() override {
         level_select_screen = ResourceManager::GetInstance()->GetTexture("screen_level_select.png");
