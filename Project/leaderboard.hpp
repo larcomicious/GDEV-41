@@ -15,13 +15,6 @@ struct LeaderboardEntry {
     float time;
 };
 
-// Stores the best times per level in a small .ini file:
-//
-//   [level_1]
-//   1=ALICE,12.34
-//   2=BOB,15.80
-//
-// Lower time = better. Only the top MAX_ENTRIES per level are kept.
 class Leaderboard {
 public:
     static constexpr int MAX_ENTRIES = 5;
@@ -103,7 +96,6 @@ public:
         }
     }
 
-    // Would this time make the top MAX_ENTRIES for the level?
     bool qualifies(int level, float time) const {
         auto it = levels.find(level);
 
@@ -113,8 +105,6 @@ public:
         return time < it->second.back().time;
     }
 
-    // Inserts the score and saves the file.
-    // Returns the rank index (0 = best), or -1 if it didn't make the board.
     int add(int level, const std::string& name, float time) {
         auto& entries = levels[level];
 

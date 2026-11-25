@@ -23,7 +23,6 @@ class LeaderboardScene : public Scene {
     int highlight_index = -1;
 
     void handleNameInput() {
-        // typed characters (letters, digits, underscore)
         int key = GetCharPressed();
         while (key > 0) {
             bool allowed = (key >= 'A' && key <= 'Z') ||
@@ -60,10 +59,8 @@ public:
         name.clear();
         highlight_index = -1;
 
-        // throw away any keys typed before this screen opened
         while (GetCharPressed() > 0) {}
 
-        // only ask for a name if the level was completed and the time makes the top list
         entering_name = session.last_outcome == LevelOutcome::COMPLETED &&
                         leaderboard.qualifies(session.last_result_level, session.last_result_time);
     }
