@@ -125,7 +125,7 @@ inline void applyAirStabilization(const Motorcycle& m, Vector2& front_wheel_forc
 }
 
 
-inline void updateMotorcyclePhysics(Motorcycle& motorcycle, MotorcycleInput& input, int jump_count, float timestep) {
+inline void updateMotorcyclePhysics(Motorcycle& motorcycle, MotorcycleInput& input, int& jump_count, float timestep) {
     const Vector2 gravity = {0.0f, motorcycle_physics::gravity_y};
 
     Vector2 body_forces = Vector2Scale(gravity, motorcycle.body.mass);

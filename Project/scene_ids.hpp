@@ -1,0 +1,10 @@
+#pragma once
+
+enum SceneID {
+    SCENE_TITLE = 0,
+    SCENE_LEVEL_SELECT,
+    SCENE_LEVEL_1,
+    SCENE_LEVEL_2,
+    SCENE_LEVEL_3,
+    SCENE_LEADERBOARD
+};
