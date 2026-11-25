@@ -14,11 +14,10 @@ private:
     bool hasPreviousDirection = false;
 
 public:
-    TrackBuilder(Vector2 start)
-        : currentPoint(start) {
+    TrackBuilder(Vector2 start) : currentPoint(start) {
     }
 
-    // Add a straight section ending at the specified point.
+    // add a straight segment with  specific enpoint.
     void addStraightTo(Vector2 end) {
         track.addSegment(currentPoint, end);
 
@@ -28,6 +27,7 @@ public:
         currentPoint = end;
     }
 
+    // for gaps
     void skipTo(Vector2 end) {
         track.beginNewChain();
 
@@ -37,20 +37,9 @@ public:
         hasPreviousDirection = false;
     }
 
-    // Add a cubic Bezier curve.
-    void addBezierTo(
-        Vector2 control1,
-        Vector2 control2,
-        Vector2 end,
-        int subdivisions = 5
-    ) {
-        track.addBezier(
-            currentPoint,
-            control1,
-            control2,
-            end,
-            subdivisions
-        );
+    // for cubic bezier curves
+    void addBezierTo(Vector2 control1, Vector2 control2, Vector2 end, int subdivisions = 5) {
+        track.addBezier(currentPoint, control1, control2, end, subdivisions);
 
         previousTangent = Vector2Subtract(end, control2);
         hasPreviousDirection = true;
@@ -58,27 +47,14 @@ public:
         currentPoint = end;
     }
 
-    // Add a Bezier curve that continues the previous section's direction.
-    void addSmoothBezierTo(
-        Vector2 control2,
-        Vector2 end,
-        int subdivisions = 5
-    ) {
+    // new bezier curve that continues the with dir of previous section
+    void addSmoothBezierTo(Vector2 control2, Vector2 end, int subdivisions = 5) {
         if (!hasPreviousDirection)
             return;
 
-        Vector2 control1 = Vector2Add(
-            currentPoint,
-            previousTangent
-        );
+        Vector2 control1 = Vector2Add(currentPoint, previousTangent);
 
-        track.addBezier(
-            currentPoint,
-            control1,
-            control2,
-            end,
-            subdivisions
-        );
+        track.addBezier(currentPoint, control1, control2,end, subdivisions);
 
         previousTangent = Vector2Subtract(end, control2);
         currentPoint = end;

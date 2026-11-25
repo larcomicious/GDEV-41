@@ -12,12 +12,7 @@ private:
     int chain_id;
 
 public:
-    SegmentGround(
-        Vector2 start,
-        Vector2 end,
-        int chain_id = 0
-    )
-        : start(start), end(end), chain_id(chain_id) {
+    SegmentGround(Vector2 start, Vector2 end, int chain_id = 0) : start(start), end(end), chain_id(chain_id) {
     }
 
     GroundSample sample(Vector2 position) const override {
@@ -34,30 +29,14 @@ public:
         float raw_t = Vector2DotProduct(ap, ab) / length_squared;
         float t = Clamp(raw_t, 0.0f, 1.0f);
 
-        Vector2 closest_point = Vector2Add(
-            start,
-            Vector2Scale(ab, t)
-        );
-
+        Vector2 closest_point = Vector2Add(start, Vector2Scale(ab, t));
         Vector2 tangent = Vector2Normalize(ab);
 
-        // Surface normal for the direction this segment was constructed.
-        Vector2 surface_normal = Vector2Normalize({
-            tangent.y,
-            -tangent.x
-        });
-
-        Vector2 offset = Vector2Subtract(
-            position,
-            closest_point
-        );
+        Vector2 surface_normal = Vector2Normalize({tangent.y, -tangent.x});
+        Vector2 offset = Vector2Subtract(position, closest_point);
 
         float distance = Vector2Length(offset);
-
-        float signed_distance = Vector2DotProduct(
-            offset,
-            surface_normal
-        );
+        float signed_distance = Vector2DotProduct(offset, surface_normal);
 
         bool at_start = raw_t <= 0.0f;
         bool at_end = raw_t >= 1.0f;
@@ -66,13 +45,8 @@ public:
         Vector2 contact_normal = surface_normal;
         float separation = signed_distance;
 
-        // Open endpoint: use a radial contact normal.
         if (at_endpoint && distance > 0.0001f) {
-            contact_normal = Vector2Scale(
-                offset,
-                1.0f / distance
-            );
-
+            contact_normal = Vector2Scale(offset, 1.0f / distance);
             separation = distance;
         }
 

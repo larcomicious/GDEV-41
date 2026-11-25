@@ -199,30 +199,13 @@ public:
             
             motorcycle_collision::MotorcycleGroundContacts contacts{};
 
-            // Ground collision
-            handleGroundCollision(
-                motorcycle,
-                ground,
-                contacts
-            );
-
-            // Preserve existing motorcycle frame constraints.
+            handleGroundCollision(motorcycle, ground, contacts);
             solveBodyFrameLimit(motorcycle);
 
-            // Ground friction
-            applyGroundFriction(
-                motorcycle.front_wheel,
-                motorcycle.front_wheel_on_ground,
-                contacts.front_wheel,
-                TIMESTEP
-            );
-
-            applyGroundFriction(
-                motorcycle.rear_wheel,
-                motorcycle.rear_wheel_on_ground,
-                contacts.rear_wheel,
-                TIMESTEP
-            );
+            // friction
+            applyGroundFriction(motorcycle.front_wheel, motorcycle.front_wheel_on_ground, contacts.front_wheel, TIMESTEP);
+            applyGroundFriction(motorcycle.rear_wheel, motorcycle.rear_wheel_on_ground, contacts.rear_wheel, TIMESTEP);
+            
             if (motorcycle.front_wheel_on_ground && motorcycle.rear_wheel_on_ground) 
                 jump_count = 0;
 

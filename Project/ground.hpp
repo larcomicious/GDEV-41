@@ -28,23 +28,12 @@ public:
         return sample(position);
     }
 
-    // Bounded, one-sided sampling.
-    virtual GroundSample sample(
-        Vector2 position,
-        int preferred_segment_index,
-        float max_distance,
-        float max_backface_penetration
-    ) const {
-        GroundSample result = sample(
-            position,
-            preferred_segment_index
-        );
+    // one-sided sampling thats bounded
+    virtual GroundSample sample(Vector2 position, int preferred_segment_index, float max_distance, float max_backface_penetration) const {
+        GroundSample result = sample(position, preferred_segment_index);
 
-        if (!result.valid ||
-            result.distance > max_distance ||
-            result.signed_distance < -max_backface_penetration) {
+        if (!result.valid || result.distance > max_distance || result.signed_distance < -max_backface_penetration) 
             result.valid = false;
-        }
 
         return result;
     }
