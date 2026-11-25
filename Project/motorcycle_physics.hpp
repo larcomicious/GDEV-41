@@ -225,3 +225,17 @@ inline void solveBodyFrameLimit(Motorcycle& m) {
     }
 }
 
+inline void solveChassisAlignment(Motorcycle& m) {
+    m.updateOrientation();
+
+    Vector2 wheel_midpoint = Vector2Scale(Vector2Add(m.front_wheel.position, m.rear_wheel.position), 0.5f);
+    Vector2 wheel_velocity = Vector2Scale(Vector2Add(m.front_wheel.velocity, m.rear_wheel.velocity), 0.5f);
+
+    // keep the chassis centered along wheel axis
+    float forward_offset = Vector2DotProduct(Vector2Subtract(m.body.position, wheel_midpoint), m.forward);
+    float relative_forward_speed = Vector2DotProduct(Vector2Subtract(m.body.velocity, wheel_velocity), m.forward);
+
+    m.body.position = Vector2Subtract(m.body.position, Vector2Scale(m.forward, forward_offset));
+    m.body.velocity = Vector2Subtract(m.body.velocity, Vector2Scale(m.forward, relative_forward_speed));
+}
+
