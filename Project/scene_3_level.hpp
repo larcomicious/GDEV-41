@@ -55,6 +55,12 @@ private:
     motorcycle_collision::MotorcycleGroundContacts ground_contacts{};
 
     Font ui_font;
+    Sound engine_sound;
+    float engine_volume = 0.0f;
+
+    static constexpr float ENGINE_MAX_VOLUME = 0.2f;
+    static constexpr float ENGINE_FADE_IN_SPEED = 1.0f;
+    static constexpr float ENGINE_FADE_OUT_SPEED = 0.5f;
     
     LevelState level_state = LevelState::READY;
     
@@ -174,10 +180,32 @@ private:
         initializeCamera();
     }
 
+    void updateEngineSound(bool accelerating, float delta_time) {
+        float target = accelerating ? ENGINE_MAX_VOLUME : 0.0f;
+        float speed = accelerating ? ENGINE_FADE_IN_SPEED : ENGINE_FADE_OUT_SPEED;
+
+        if (engine_volume < target)
+            engine_volume = Clamp(engine_volume + speed * delta_time, 0.0f, target);
+        else
+            engine_volume = Clamp(engine_volume - speed * delta_time, target, ENGINE_MAX_VOLUME);
+
+        if (accelerating && !IsSoundPlaying(engine_sound))
+            PlaySound(engine_sound);
+
+        if (engine_volume <= 0.0f && IsSoundPlaying(engine_sound))
+            StopSound(engine_sound);
+
+        SetSoundVolume(engine_sound, engine_volume);
+    }
+
 public:
     LevelScene(const LevelConfig& config, GameSession& session) : config(config), session(session) {}
 
     void Begin() override {
+        engine_sound = ResourceManager::GetInstance()->GetSound("Engine_EpidemicSound.wav");
+        engine_volume = 0.0f;
+        SetSoundVolume(engine_sound, 0.0f);
+        
 
         ui_font = ResourceManager::GetInstance()->GetFont("KNYuanmo-Regular.ttf");
 
@@ -197,6 +225,8 @@ public:
         float delta_time = GetFrameTime();
 
         MotorcycleInput input = readMotorcycleInput();
+
+        updateEngineSound(input.throttle > 0.0f && level_state == LevelState::PLAYING, delta_time);
 
         if (input.reset) {
             resetLevel();
