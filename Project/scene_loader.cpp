@@ -12,7 +12,14 @@
 
 int main() {
     InitWindow(1080, 720, "Project - Gimena Tan");
+
+    InitAudioDevice();
+
     SetTargetFPS(60);
+
+    Music music = LoadMusicStream("MorningGlory_TatsuroYamashita.mp3");
+    SetMusicVolume(music, 0.05f);
+    PlayMusicStream(music);
 
     SceneManager scene_manager;
 
@@ -50,6 +57,7 @@ int main() {
     scene_manager.SwitchScene(SCENE_TITLE);
 
     while (!WindowShouldClose()) {
+        UpdateMusicStream(music);
         Scene* active_scene = scene_manager.GetActiveScene();
 
         BeginDrawing();
@@ -75,6 +83,9 @@ int main() {
 
     ResourceManager::GetInstance()->UnloadAllTextures();
     ResourceManager::GetInstance()->UnloadAllFonts();
+
+    UnloadMusicStream(music);
+    CloseAudioDevice();
 
     CloseWindow();
 
