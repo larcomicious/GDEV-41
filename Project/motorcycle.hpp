@@ -51,7 +51,7 @@ struct Motorcycle {
     int rear_ground_segment_index = -1;
     int body_ground_segment_index = -1;
 
-    bool debug = true;
+    bool debug = false;
 
     void initialize() {
         //body

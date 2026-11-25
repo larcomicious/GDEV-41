@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include <raylib.h>
@@ -142,76 +141,76 @@ inline void updateMotorcyclePhysics(Motorcycle& motorcycle, MotorcycleInput& inp
     float base_engine_force = input.nitro_active ? motorcycle_physics::engine_force * motorcycle_physics::turbo_multiplier : motorcycle_physics::engine_force;
     float total_engine_force = input.throttle * base_engine_force * movement_multiplier;
 
+    if (is_airborne) {
+
+        // float total_mass = motorcycle.body.mass + motorcycle.front_wheel.mass + motorcycle.rear_wheel.mass;
+
+        // if (total_mass > 0.0f) {
+        //     addDirectionForce(body_forces, motorcycle.forward, total_engine_force * motorcycle.body.mass / total_mass);
+        //     addDirectionForce(front_wheel_forces, motorcycle.forward, total_engine_force * motorcycle.front_wheel.mass / total_mass);
+        //     addDirectionForce(rear_wheel_forces, motorcycle.forward, total_engine_force * motorcycle.rear_wheel.mass / total_mass);
+        // }
+
+        applyAirStabilization(motorcycle, front_wheel_forces, rear_wheel_forces, input.rotation);
+    }
+    else {
+        // grounded, rear-wheel only
+        if (motorcycle.rear_wheel_on_ground && rear_contact.valid)
+            addDirectionForce(rear_wheel_forces, motorcycle.forward, total_engine_force);
+    }
+
     // if (is_airborne) {
-
-    //     // float total_mass = motorcycle.body.mass + motorcycle.front_wheel.mass + motorcycle.rear_wheel.mass;
-
-    //     // if (total_mass > 0.0f) {
-    //     //     addDirectionForce(body_forces, motorcycle.forward, total_engine_force * motorcycle.body.mass / total_mass);
-    //     //     addDirectionForce(front_wheel_forces, motorcycle.forward, total_engine_force * motorcycle.front_wheel.mass / total_mass);
-    //     //     addDirectionForce(rear_wheel_forces, motorcycle.forward, total_engine_force * motorcycle.rear_wheel.mass / total_mass);
-    //     // }
-
     //     applyAirStabilization(motorcycle, front_wheel_forces, rear_wheel_forces, input.rotation);
     // }
-    // else {
-    //     // grounded, rear-wheel only
-    //     if (motorcycle.rear_wheel_on_ground)
-    //         addDirectionForce(rear_wheel_forces, motorcycle.forward, total_engine_force);
-    // }
 
-    // // if (is_airborne) {
-    // //     applyAirStabilization(motorcycle, front_wheel_forces, rear_wheel_forces, input.rotation);
-    // // }
+//     if (is_airborne && !motorcycle.body_on_ground) {
 
-    if (is_airborne && !motorcycle.body_on_ground) {
+//     applyAirStabilization(
+//         motorcycle,
+//         front_wheel_forces,
+//         rear_wheel_forces,
+//         input.rotation
+//     );
 
-    applyAirStabilization(
-        motorcycle,
-        front_wheel_forces,
-        rear_wheel_forces,
-        input.rotation
-    );
+// }
+// else {
 
-}
-else {
+//     bool valid_rear_contact =
+//         motorcycle.rear_wheel_on_ground &&
+//         rear_contact.valid;
 
-    bool valid_rear_contact =
-        motorcycle.rear_wheel_on_ground &&
-        rear_contact.valid;
+//     if (valid_rear_contact && !motorcycle.body_on_ground) {
 
-    if (valid_rear_contact && !motorcycle.body_on_ground) {
+//         // Check whether the motorcycle is oriented correctly
+//         // relative to the contacted surface.
+//         float upright_alignment = Vector2DotProduct(
+//             motorcycle.local_up,
+//             rear_contact.normal
+//         );
 
-        // Check whether the motorcycle is oriented correctly
-        // relative to the contacted surface.
-        float upright_alignment = Vector2DotProduct(
-            motorcycle.local_up,
-            rear_contact.normal
-        );
+//         constexpr float minimum_upright_alignment = 0.25f;
 
-        constexpr float minimum_upright_alignment = 0.25f;
+//         if (upright_alignment > minimum_upright_alignment) {
 
-        if (upright_alignment > minimum_upright_alignment) {
+//             // Use the actual surface direction for propulsion.
+//             Vector2 drive_direction = rear_contact.tangent;
 
-            // Use the actual surface direction for propulsion.
-            Vector2 drive_direction = rear_contact.tangent;
+//             // Make sure the direction agrees with motorcycle.forward.
+//             if (Vector2DotProduct(
+//                 drive_direction,
+//                 motorcycle.forward
+//             ) < 0.0f) {
+//                 drive_direction = Vector2Negate(drive_direction);
+//             }
 
-            // Make sure the direction agrees with motorcycle.forward.
-            if (Vector2DotProduct(
-                drive_direction,
-                motorcycle.forward
-            ) < 0.0f) {
-                drive_direction = Vector2Negate(drive_direction);
-            }
-
-            addDirectionForce(
-                rear_wheel_forces,
-                drive_direction,
-                total_engine_force
-            );
-        }
-    }
-}
+//             addDirectionForce(
+//                 rear_wheel_forces,
+//                 drive_direction,
+//                 total_engine_force
+//             );
+//         }
+//     }
+// }
 
     if (input.jump_pressed && jump_count < motorcycle_physics::max_jump_count) {
         motorcycle.body.velocity.y = -motorcycle_physics::jump_velocity;

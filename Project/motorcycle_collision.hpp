@@ -60,12 +60,7 @@ inline GroundSample resolveWheelGroundCollision(Ball& wheel, bool& on_ground, in
 }
 
 
-inline GroundSample resolveBodyGroundCollision(
-    Ball& body,
-    bool& on_ground,
-    int& preferred_segment_index,
-    const Ground& ground
-) {
+inline GroundSample resolveBodyGroundCollision(Ball& body, bool& on_ground, int& preferred_segment_index, const Ground& ground) {
     float search_distance =
         body.radius +
         motorcycle_collision::body_recovery_margin;
@@ -123,31 +118,10 @@ inline GroundSample resolveBodyGroundCollision(
 
 
 
-inline void handleGroundCollision(
-    Motorcycle& motorcycle,
-    const Ground& ground,
-    motorcycle_collision::MotorcycleGroundContacts& contacts
-) {
-    contacts.front_wheel = resolveWheelGroundCollision(
-        motorcycle.front_wheel,
-        motorcycle.front_wheel_on_ground,
-        motorcycle.front_ground_segment_index,
-        ground
-    );
-
-    contacts.rear_wheel = resolveWheelGroundCollision(
-        motorcycle.rear_wheel,
-        motorcycle.rear_wheel_on_ground,
-        motorcycle.rear_ground_segment_index,
-        ground
-    );
-
-    contacts.body = resolveBodyGroundCollision(
-        motorcycle.body,
-        motorcycle.body_on_ground,
-        motorcycle.body_ground_segment_index,
-        ground
-    );
+inline void handleGroundCollision(Motorcycle& motorcycle, const Ground& ground, motorcycle_collision::MotorcycleGroundContacts& contacts) {
+    contacts.front_wheel = resolveWheelGroundCollision( motorcycle.front_wheel, motorcycle.front_wheel_on_ground, motorcycle.front_ground_segment_index, ground);
+    contacts.rear_wheel = resolveWheelGroundCollision( motorcycle.rear_wheel, motorcycle.rear_wheel_on_ground, motorcycle.rear_ground_segment_index, ground);
+    contacts.body = resolveBodyGroundCollision( motorcycle.body, motorcycle.body_on_ground, motorcycle.body_ground_segment_index, ground);
 }
 
 inline void applyGroundFriction(Ball& wheel, bool on_ground, const GroundSample& sample, float timestep) {
