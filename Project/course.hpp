@@ -358,10 +358,10 @@ inline Course createLevelThreeCourse() {
     );
     // endcircle
 
-    builder.skipTo({1998.0f, 1578.5f});
+    builder.skipTo({1904.5f, 1581.5f});
 
     builder.addBezierTo(
-        {2011.5f, 1735.5f},  
+        {1904.5f, 1804.0f},  
         {2163.5f, 2035.5f},  
         {2497.5f, 2038.0f},  
         curve_subdivisions
@@ -418,10 +418,10 @@ inline Course createLevelThreeCourse() {
     );
     // endcircle
 
-    builder.skipTo({5623.0f, 1924.5f});
+    builder.skipTo({5517.5f, 1938.5f});
 
     builder.addBezierTo(
-        {5686.8f, 2034.5f},  
+        {5581.3f, 2048.5f},  
         {6039.9f, 2259.4f},  
         {6301.5f, 2223.0f},  
         curve_subdivisions
