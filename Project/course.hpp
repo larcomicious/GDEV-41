@@ -328,8 +328,8 @@ inline Course createLevelThreeCourse() {
 
     builder.addBezierTo(
         {1732.0f, 1370.0f},  
-        {1880.3f, 1289.5f},  
-        {1997.0f, 1253.0f},  
+        {1802.5f, 1358.0f},  
+        {1904.5f, 1283.5f},  
         curve_subdivisions
     );
 
@@ -387,8 +387,8 @@ inline Course createLevelThreeCourse() {
 
     builder.addBezierTo(
         {5210.0f, 1855.0f},  
-        {5445.5f, 1767.0f},  
-        {5627.0f, 1691.5f},  
+        {5336.0f, 1824.5f},  
+        {5517.5f, 1749.0f},  
         curve_subdivisions
     );
 
