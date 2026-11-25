@@ -200,7 +200,7 @@ public:
     LevelScene(const LevelConfig& config, GameSession& session) : config(config), session(session) {}
 
     void Begin() override {
-        engine_sound = LoadSound("Engine_EpidemicSound.wav");
+        engine_sound = ResourceManager::GetInstance()->GetSound("Engine_EpidemicSound.wav");
         engine_volume = 0.0f;
         SetSoundVolume(engine_sound, 0.0f);
         

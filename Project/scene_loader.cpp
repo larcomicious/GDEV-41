@@ -83,6 +83,7 @@ int main() {
 
     ResourceManager::GetInstance()->UnloadAllTextures();
     ResourceManager::GetInstance()->UnloadAllFonts();
+    ResourceManager::GetInstance()->UnloadAllSounds();
 
     UnloadMusicStream(music);
     CloseAudioDevice();

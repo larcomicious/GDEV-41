@@ -89,6 +89,7 @@ public:
 class ResourceManager {
     std::unordered_map<std::string, Texture> textures;
     std::unordered_map<std::string, Font> fonts;
+    std::unordered_map<std::string, Sound> sounds;
     static constexpr int FONT_LOAD_SIZE = 96; 
 
     ResourceManager() {}
@@ -112,7 +113,7 @@ public:
             textures[path] = LoadTexture(path.c_str());
         }
         else {
-            std::cout << "Resource Already Loaded" << std::endl;
+            std::cout << "Texture Resource Already Loaded" << std::endl;
         }
 
         return textures[path];
@@ -146,6 +147,27 @@ public:
         }
 
         fonts.clear();
+    }
+
+    Sound GetSound(const std::string& path) {
+        if (sounds.find(path) == sounds.end()) {
+            std::cout << "Loaded sound " << path << " from Disk" << std::endl;
+            Sound sound = LoadSound(path.c_str());
+            sounds[path] = sound;
+        }
+        else {
+            std::cout << "Sound Resource Already Loaded" << std::endl;
+        }
+
+        return sounds[path];
+    }
+
+    void UnloadAllSounds() {
+        for (auto& it : sounds) {
+            UnloadSound(it.second);
+        }
+
+        sounds.clear();
     }
 };
 
