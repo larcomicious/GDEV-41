@@ -47,6 +47,10 @@ struct Motorcycle {
     bool rear_wheel_on_ground;
     bool body_on_ground;
 
+    int front_ground_segment_index = -1;
+    int rear_ground_segment_index = -1;
+    int body_ground_segment_index = -1;
+
     bool debug = true;
 
     void initialize() {
@@ -101,6 +105,10 @@ struct Motorcycle {
         // m.wheel_to_wheel_suspension.rest_length = wheel_distance;
         // m.wheel_to_wheel_suspension.k = WHEEL_TO_WHEEL_STIFFNESS;
         // m.wheel_to_wheel_suspension.b = WHEEL_TO_WHEEL_DAMPNESS;
+
+        front_ground_segment_index = -1;
+        rear_ground_segment_index = -1;
+        body_ground_segment_index = -1;
     }
     void updateOrientation() {
         position = body.position;
