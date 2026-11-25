@@ -29,7 +29,12 @@ public:
     }
 
     void skipTo(Vector2 end) {
+        track.beginNewChain();
+
         currentPoint = end;
+
+        previousTangent = Vector2Zero();
+        hasPreviousDirection = false;
     }
 
     // Add a cubic Bezier curve.

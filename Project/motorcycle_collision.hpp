@@ -10,114 +10,161 @@
 namespace motorcycle_collision {
 
     constexpr float contact_tolerance = 0.5f;
+    constexpr float sample_search_margin = 8.0f;
+    constexpr float max_backface_penetration = 8.0f;
+
     constexpr float ground_friction = 5.0f;
+
+    struct MotorcycleGroundContacts {
+        GroundSample front_wheel{};
+        GroundSample rear_wheel{};
+        GroundSample body{};
+    };
 }
 
-inline void resolveWheelGroundCollision(
-        Ball& wheel,
-        bool& on_ground,
-        const Ground& ground
-    ) {
-        GroundSample sample = ground.sample(wheel.position);
 
-        if (!sample.valid) {
-            on_ground = false;
-            return;
-        }
+// Resolve one circular object against the ground.
+inline GroundSample resolveWheelGroundCollision(
+    Ball& wheel,
+    bool& on_ground,
+    int& preferred_segment_index,
+    const Ground& ground
+) {
 
-        Vector2 normal = sample.normal;
-        Vector2 to_wheel = Vector2Subtract(wheel.position, sample.point);
+    float search_distance =
+        wheel.radius +
+        motorcycle_collision::contact_tolerance +
+        motorcycle_collision::sample_search_margin;
 
-        float distance = Vector2DotProduct(to_wheel, normal);
+    GroundSample sample = ground.sample(
+        wheel.position,
+        preferred_segment_index,
+        search_distance,
+        motorcycle_collision::max_backface_penetration
+    );
 
-        on_ground = distance <= wheel.radius + motorcycle_collision::contact_tolerance;
+    if (!sample.valid) {
+        on_ground = false;
+        return sample;
+    }
 
-        // Resolve clipping
-        if (distance < wheel.radius) {
-            float penetration = wheel.radius - distance;
+    // Remember the segment, even when the wheel is just above it.
+    preferred_segment_index = sample.segment_index;
 
-            wheel.position = Vector2Add(
-                wheel.position,
-                Vector2Scale(normal, penetration)
+    // The wheel must actually overlap or nearly touch the terrain.
+    if (sample.distance >
+            wheel.radius + motorcycle_collision::contact_tolerance ||
+        sample.separation >
+            wheel.radius + motorcycle_collision::contact_tolerance) {
+
+        on_ground = false;
+        return sample;
+    }
+
+    on_ground = true;
+
+    // Resolve penetration.
+    if (sample.separation < wheel.radius) {
+
+        float penetration = wheel.radius - sample.separation;
+
+        wheel.position = Vector2Add(
+            wheel.position,
+            Vector2Scale(sample.normal, penetration)
+        );
+
+        // Remove velocity directed into the surface.
+        float normal_velocity = Vector2DotProduct(
+            wheel.velocity,
+            sample.normal
+        );
+
+        if (normal_velocity < 0.0f) {
+            wheel.velocity = Vector2Subtract(
+                wheel.velocity,
+                Vector2Scale(sample.normal, normal_velocity)
             );
-
-            // Remove velocity directed into the ground
-            float normal_velocity = Vector2DotProduct(
-                wheel.velocity, normal
-            );
-
-            if (normal_velocity < 0.0f) {
-                wheel.velocity = Vector2Subtract(
-                    wheel.velocity,
-                    Vector2Scale(normal, normal_velocity)
-                );
-            }
         }
     }
 
-    inline void handleGroundCollision(
-        Motorcycle& motorcycle,
-        const Ground& ground
-    ) {
-        resolveWheelGroundCollision(
-            motorcycle.front_wheel,
-            motorcycle.front_wheel_on_ground,
-            ground
-        );
+    return sample;
+}
 
-        resolveWheelGroundCollision(
-            motorcycle.rear_wheel,
-            motorcycle.rear_wheel_on_ground,
-            ground
-        );
 
-        resolveWheelGroundCollision(
-            motorcycle.body,
-            motorcycle.body_on_ground,
-            ground
-        );
-    }
+// Resolve all motorcycle components and preserve their contact samples.
+inline void handleGroundCollision(
+    Motorcycle& motorcycle,
+    const Ground& ground,
+    motorcycle_collision::MotorcycleGroundContacts& contacts
+) {
 
-    inline void applyGroundFriction(
-        Ball& wheel,
-        bool on_ground,
-        const Ground& ground,
-        float timestep
-    ) {
-        if (!on_ground)
-            return;
+    contacts.front_wheel = resolveWheelGroundCollision(
+        motorcycle.front_wheel,
+        motorcycle.front_wheel_on_ground,
+        motorcycle.front_ground_segment_index,
+        ground
+    );
 
-        GroundSample sample = ground.sample(wheel.position);
+    contacts.rear_wheel = resolveWheelGroundCollision(
+        motorcycle.rear_wheel,
+        motorcycle.rear_wheel_on_ground,
+        motorcycle.rear_ground_segment_index,
+        ground
+    );
 
-        Vector2 tangent = sample.tangent;
+    contacts.body = resolveWheelGroundCollision(
+        motorcycle.body,
+        motorcycle.body_on_ground,
+        motorcycle.body_ground_segment_index,
+        ground
+    );
+}
 
-        // Project velocity onto the ground tangent
-        float tangent_velocity = Vector2DotProduct(
-            wheel.velocity, tangent
-        );
 
-        Vector2 tangential_component = Vector2Scale(
-            tangent, tangent_velocity
-        );
+// Friction uses the exact contact sample selected during collision.
+inline void applyGroundFriction(
+    Ball& wheel,
+    bool on_ground,
+    const GroundSample& sample,
+    float timestep
+) {
 
-        // Preserve velocity perpendicular to the ground
-        Vector2 normal_component = Vector2Subtract(
-            wheel.velocity, tangential_component
-        );
+    if (!on_ground || !sample.valid)
+        return;
 
-        // Apply tangential damping
-        float friction_factor =
-            1.0f - motorcycle_collision::ground_friction * wheel.inverse_mass * timestep;
+    Vector2 tangent = sample.tangent;
 
-        if (friction_factor < 0.0f)
-            friction_factor = 0.0f;
+    float tangent_velocity = Vector2DotProduct(
+        wheel.velocity,
+        tangent
+    );
 
-        tangential_component = Vector2Scale(
-            tangential_component, friction_factor
-        );
+    Vector2 tangential_component = Vector2Scale(
+        tangent,
+        tangent_velocity
+    );
 
-        wheel.velocity = Vector2Add(
-            tangential_component, normal_component
-        );
-    }
+    Vector2 normal_component = Vector2Subtract(
+        wheel.velocity,
+        tangential_component
+    );
 
+    float friction_factor =
+        1.0f -
+        motorcycle_collision::ground_friction *
+        wheel.inverse_mass *
+        timestep;
+
+    if (friction_factor < 0.0f)
+        friction_factor = 0.0f;
+
+    tangential_component = Vector2Scale(
+        tangential_component,
+        friction_factor
+    );
+
+    wheel.velocity = Vector2Add(
+        tangential_component,
+        normal_component
+    );
+}
