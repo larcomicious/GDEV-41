@@ -9,6 +9,7 @@
 
 class LevelSelectScene : public Scene {
     GameSession& session;
+    Texture level_select_screen;
 
     void selectLevel(int level, int scene_id) {
         session.selected_level = level;
@@ -26,6 +27,7 @@ public:
     }
 
     void Begin() override {
+        level_select_screen = ResourceManager::GetInstance()->GetTexture("screen_level_select.png");
     }
 
     void End() override {
@@ -44,20 +46,22 @@ public:
     }
 
     void Draw() override {
-        DrawText("SELECT LEVEL", 390, 150, 40, BLACK);
+        DrawTextureV(level_select_screen, {0, 0}, WHITE);
 
-        DrawText("[1] LEVEL 1", 420, 280, 30, DARKGRAY);
-        DrawText("[2] LEVEL 2", 420, 350, 30, DARKGRAY);
-        DrawText("[3] LEVEL 3", 420, 420, 30, DARKGRAY);
+        // DrawText("SELECT LEVEL", 390, 150, 40, BLACK);
 
-        DrawText(
-            "Press 1, 2, or 3 to select a level :3",
-            335, 540, 22, BLACK
-        );
+        // DrawText("[1] LEVEL 1", 420, 280, 30, DARKGRAY);
+        // DrawText("[2] LEVEL 2", 420, 350, 30, DARKGRAY);
+        // DrawText("[3] LEVEL 3", 420, 420, 30, DARKGRAY);
 
-        DrawText(
-            "[ESC] Quit",
-            480, 600, 18, GRAY
-        );
+        // DrawText(
+        //     "Press 1, 2, or 3 to select a level :3",
+        //     335, 540, 22, BLACK
+        // );
+
+        // DrawText(
+        //     "[ESC] Quit",
+        //     480, 600, 18, GRAY
+        // );
     }
 };

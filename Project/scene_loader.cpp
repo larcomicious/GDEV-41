@@ -19,9 +19,10 @@ int main() {
     GameSession session; // shared session
 
     // configs
-    const LevelConfig level1_config = {1, &createBeginnerCourse, 5.0f, true, 1500.0f};
-    const LevelConfig level2_config = {2, &createBeginnerCourse};
-    const LevelConfig level3_config = {3, &createBeginnerCourse};
+    // const LevelConfig level1_config = {1, &createLevelOneCourse, 5.0f, true, 1500.0f};
+    const LevelConfig level1_config = {1, &createLevelOneCourse};
+    const LevelConfig level2_config = {2, &createLevelTwoCourse};
+    const LevelConfig level3_config = {3, &createLevelThreeCourse};
 
     TitleScene title_scene;
     LevelSelectScene level_select_scene(session);
