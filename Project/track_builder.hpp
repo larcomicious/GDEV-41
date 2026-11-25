@@ -28,6 +28,10 @@ public:
         currentPoint = end;
     }
 
+    void skipTo(Vector2 end) {
+        currentPoint = end;
+    }
+
     // Add a cubic Bezier curve.
     void addBezierTo(
         Vector2 control1,

@@ -7,11 +7,11 @@
 #include "scene_ids.hpp"
 
 class TitleScene : public Scene {
-    Texture raylib_logo;
+    Texture title_screen;
 
 public:
     void Begin() override {
-        raylib_logo = ResourceManager::GetInstance()->GetTexture("Raylib_logo.png");
+        title_screen = ResourceManager::GetInstance()->GetTexture("screen_title.png");
     }
 
     void End() override {}
@@ -25,10 +25,12 @@ public:
     }
 
     void Draw() override {
-        DrawTexturePro(raylib_logo, {0, 0, 256, 256}, {300, 100, 200, 200}, {0, 0}, 0.0f, WHITE);
+        // DrawTexturePro(title_screen, {0, 0, 256, 256}, {300, 100, 200, 200}, {0, 0}, 0.0f, WHITE);
 
-        DrawText("MOTORCYCLE GAME", 340, 380, 40, BLACK);
-        DrawText("PRESS ENTER TO START", 390, 460, 24, DARKGRAY);
+        DrawTextureV(title_screen, {0, 0}, WHITE);
+
+        // DrawText("MOTORCYCLE GAME", 340, 380, 40, BLACK);
+        // DrawText("PRESS ENTER TO START", 390, 460, 24, DARKGRAY);
     }
 };
 

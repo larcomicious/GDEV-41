@@ -37,7 +37,10 @@ class GameScene : public Scene {
         Course& c = course;
         Track& g = ground;
 
-        c = createBeginnerCourse();
+        // c = createBeginnerCourse();
+        // c = createLevelOneCourse();
+        // c = createLevelTwoCourse();
+        c = createLevelThreeCourse();
 
         g = c.track;
     }
