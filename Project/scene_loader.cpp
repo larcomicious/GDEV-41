@@ -18,12 +18,17 @@ int main() {
 
     GameSession session; // shared session
 
+    // configs
+    const LevelConfig level1_config = {1, &createBeginnerCourse};
+    const LevelConfig level2_config = {2, &createBeginnerCourse};
+    const LevelConfig level3_config = {3, &createBeginnerCourse};
+
     TitleScene title_scene;
     LevelSelectScene level_select_scene(session);
 
-    LevelScene level1_scene(1, &createBeginnerCourse, session);
-    LevelScene level2_scene(2, &createBeginnerCourse, session);
-    LevelScene level3_scene(3, &createBeginnerCourse, session);
+    LevelScene level1_scene(level1_config, session);
+    LevelScene level2_scene(level2_config, session);
+    LevelScene level3_scene(level3_config, session);
 
     LeaderboardScene leaderboard_scene(session);
 

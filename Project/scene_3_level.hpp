@@ -7,6 +7,8 @@
 #include "scene_ids.hpp"
 #include "game_session.hpp"
 
+#include "level_config.hpp"
+
 #include "segment_ground.hpp"
 #include "track.hpp"
 #include "course.hpp"
@@ -33,8 +35,7 @@ private:
 
     static constexpr float START_COUNTDOWN = 3.0f;
 
-    int level_number;
-    CourseFactory course_factory; // stores function pointer to the course factory
+    const LevelConfig config;
     GameSession& session;
     
     Motorcycle motorcycle;
@@ -50,7 +51,7 @@ private:
     float countdown_timer = START_COUNTDOWN;
 
     void initializeCourse() {
-        course = course_factory();
+        course = config.course_factory();
         ground = course.track;
     }
 
@@ -85,7 +86,7 @@ private:
     }
 
     void completeLevel() {
-        session.last_completed_level = level_number;
+        session.last_completed_level = config.level_number;
         session.last_completion_time = elapsed_time;
 
         SceneManager* manager = GetSceneManager();
@@ -109,7 +110,7 @@ private:
     }
 
 public:
-    LevelScene(int level_number, CourseFactory course_factory, GameSession& session) : level_number(level_number), course_factory(course_factory), session(session) {}
+    LevelScene(const LevelConfig& config, GameSession& session) : config(config), session(session) {}
 
     void Begin() override {
         initializeCourse();
@@ -202,7 +203,7 @@ public:
         EndMode2D();
 
         // UI
-        DrawText(TextFormat("LEVEL %d", level_number), 20, 20, 24, BLACK);
+        DrawText(TextFormat("LEVEL %d", config.level_number), 20, 20, 24, BLACK);
         DrawText(TextFormat("TIME: %.2f", elapsed_time), 20, 55, 22, BLACK);
         DrawText("RIGHT/D: Accelerate    LEFT/A: Reverse", 20, 90, 18, BLACK);
         DrawText("P: Pause    R: Restart", 20, 115, 18, BLACK);
