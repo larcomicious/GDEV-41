@@ -15,6 +15,9 @@ namespace motorcycle_collision {
 
     constexpr float ground_friction = 5.0f;
 
+    constexpr float body_recovery_margin = 45.0f;
+    constexpr float body_max_correction_per_step = 12.0f;
+
     struct MotorcycleGroundContacts {
         GroundSample front_wheel{};
         GroundSample rear_wheel{};
@@ -57,12 +60,69 @@ inline GroundSample resolveWheelGroundCollision(Ball& wheel, bool& on_ground, in
 }
 
 
-inline void handleGroundCollision(Motorcycle& motorcycle, const Ground& ground, motorcycle_collision::MotorcycleGroundContacts& contacts) {
-    contacts.front_wheel = resolveWheelGroundCollision(motorcycle.front_wheel, motorcycle.front_wheel_on_ground, motorcycle.front_ground_segment_index, ground);
-    contacts.rear_wheel = resolveWheelGroundCollision(motorcycle.rear_wheel, motorcycle.rear_wheel_on_ground, motorcycle.rear_ground_segment_index, ground);
-    contacts.body = resolveWheelGroundCollision(motorcycle.body, motorcycle.body_on_ground, motorcycle.body_ground_segment_index, ground);
+inline GroundSample resolveBodyGroundCollision(Ball& body, bool& on_ground, int& preferred_segment_index, const Ground& ground) {
+    float search_distance =
+        body.radius +
+        motorcycle_collision::body_recovery_margin;
+
+    GroundSample sample = ground.sample(
+        body.position,
+        preferred_segment_index,
+        search_distance,
+        search_distance
+    );
+
+    if (!sample.valid) {
+        on_ground = false;
+        return sample;
+    }
+
+    preferred_segment_index = sample.segment_index;
+
+    if (sample.distance > body.radius + motorcycle_collision::contact_tolerance ||
+        sample.separation > body.radius + motorcycle_collision::contact_tolerance) {
+        on_ground = false;
+        return sample;
+    }
+
+    on_ground = true;
+
+    float penetration = body.radius - sample.separation;
+
+    if (penetration > 0.0f) {
+        float correction = std::min(
+            penetration,
+            motorcycle_collision::body_max_correction_per_step
+        );
+
+        body.position = Vector2Add(
+            body.position,
+            Vector2Scale(sample.normal, correction)
+        );
+
+        float normal_velocity = Vector2DotProduct(
+            body.velocity,
+            sample.normal
+        );
+
+        if (normal_velocity < 0.0f) {
+            body.velocity = Vector2Subtract(
+                body.velocity,
+                Vector2Scale(sample.normal, normal_velocity)
+            );
+        }
+    }
+
+    return sample;
 }
 
+
+
+inline void handleGroundCollision(Motorcycle& motorcycle, const Ground& ground, motorcycle_collision::MotorcycleGroundContacts& contacts) {
+    contacts.front_wheel = resolveWheelGroundCollision( motorcycle.front_wheel, motorcycle.front_wheel_on_ground, motorcycle.front_ground_segment_index, ground);
+    contacts.rear_wheel = resolveWheelGroundCollision( motorcycle.rear_wheel, motorcycle.rear_wheel_on_ground, motorcycle.rear_ground_segment_index, ground);
+    contacts.body = resolveBodyGroundCollision( motorcycle.body, motorcycle.body_on_ground, motorcycle.body_ground_segment_index, ground);
+}
 
 inline void applyGroundFriction(Ball& wheel, bool on_ground, const GroundSample& sample, float timestep) {
     if (!on_ground || !sample.valid)

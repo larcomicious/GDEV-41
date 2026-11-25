@@ -52,6 +52,8 @@ private:
     static constexpr float PARALLAX_MID = 0.25f;
     static constexpr float PARALLAX_NEAR = 0.5f;
 
+    motorcycle_collision::MotorcycleGroundContacts ground_contacts{};
+
     Font ui_font;
     Sound engine_sound;
     float engine_volume = 0.0f;
@@ -264,17 +266,26 @@ public:
 
         accumulator += delta_time;
         while (accumulator >= TIMESTEP) {
-            updateMotorcyclePhysics(motorcycle, input, jump_count, TIMESTEP);
-            
-            motorcycle_collision::MotorcycleGroundContacts contacts{};
-            
-            solveChassisAlignment(motorcycle);
-            solveBodyFrameLimit(motorcycle);
-            handleGroundCollision(motorcycle, ground, contacts);
+           updateMotorcyclePhysics(
+    motorcycle,
+    input,
+    jump_count,
+    ground_contacts.rear_wheel,
+    TIMESTEP
+);
+
+solveChassisAlignment(motorcycle);
+solveBodyFrameLimit(motorcycle);
+
+handleGroundCollision(
+    motorcycle,
+    ground,
+    ground_contacts
+);
 
             // friction
-            applyGroundFriction(motorcycle.front_wheel, motorcycle.front_wheel_on_ground, contacts.front_wheel, TIMESTEP);
-            applyGroundFriction(motorcycle.rear_wheel, motorcycle.rear_wheel_on_ground, contacts.rear_wheel, TIMESTEP);
+            applyGroundFriction(motorcycle.front_wheel, motorcycle.front_wheel_on_ground, ground_contacts.front_wheel, TIMESTEP);
+            applyGroundFriction(motorcycle.rear_wheel, motorcycle.rear_wheel_on_ground, ground_contacts.rear_wheel, TIMESTEP);
 
             if (motorcycle.front_wheel_on_ground && motorcycle.rear_wheel_on_ground) 
                 jump_count = 0;
