@@ -21,21 +21,33 @@ public:
     using CourseFactory = Course (*)(); // type alias for a function pointer 
 
 private:
+    enum class LevelState {
+        READY,
+        PLAYING,
+        PAUSED,
+        COMPLETED
+    }; 
+
     static constexpr float TIMESTEP = 1.0f / 120.0f;
     static constexpr float CAMERA_SPEED = 5.0f;
+
+    static constexpr float START_COUNTDOWN = 3.0f;
 
     int level_number;
     CourseFactory course_factory; // stores function pointer to the course factory
     GameSession& session;
-
+    
     Motorcycle motorcycle;
     Course course;
     Track ground;
     Camera2D camera = {0};
-
+    
+    LevelState level_state = LevelState::READY;
+    
     int jump_count = 0;
     float accumulator = 0.0f;
     float elapsed_time = 0.0f;
+    float countdown_timer = START_COUNTDOWN;
 
     void initializeCourse() {
         course = course_factory();
@@ -83,18 +95,26 @@ private:
         }
     }
 
-public:
-    LevelScene(int level_number, CourseFactory course_factory, GameSession& session) : level_number(level_number), course_factory(course_factory), session(session) {}
-
-    void Begin() override {
+    void resetLevel() {
         motorcycle.initialize();
-
-        initializeCourse();
-        initializeCamera();
 
         jump_count = 0;
         accumulator = 0.0f;
         elapsed_time = 0.0f;
+
+        countdown_timer = START_COUNTDOWN;
+        level_state = LevelState::READY;
+
+        initializeCamera();
+    }
+
+public:
+    LevelScene(int level_number, CourseFactory course_factory, GameSession& session) : level_number(level_number), course_factory(course_factory), session(session) {}
+
+    void Begin() override {
+        initializeCourse();
+        resetLevel();
+
     }
 
     void End() override {
@@ -106,16 +126,43 @@ public:
         MotorcycleInput input = readMotorcycleInput();
 
         if (input.reset) {
-            motorcycle.initialize();
-            jump_count = 0;
-            elapsed_time = 0.0f;
+            resetLevel();
+            return;
+        }
+
+        // countdown
+        if (level_state == LevelState::READY) {
+            countdown_timer -= delta_time;
+
+            if (countdown_timer <= 0.0f) {
+                countdown_timer = 0.0f;
+                level_state = LevelState::PLAYING;
+            }
+            return;
+        }
+
+        // if paused
+        if (level_state == LevelState::PAUSED) {
+            if (IsKeyPressed(KEY_P)) 
+                level_state = LevelState::READY;
+            return;
+        }
+
+        // if not playing, dont do anything lol
+        if (level_state != LevelState::PLAYING)
+            return;
+        
+        // pausing
+        if (IsKeyPressed(KEY_P)) {
+            countdown_timer = START_COUNTDOWN;
+            level_state = LevelState::PAUSED;
         }
 
         elapsed_time += delta_time;
 
         accumulator += delta_time;
         while (accumulator >= TIMESTEP) {
-            updateMotorcyclePhysics(motorcycle, input,jump_count, TIMESTEP);
+            updateMotorcyclePhysics(motorcycle, input, jump_count, TIMESTEP);
 
             handleGroundCollision(motorcycle, ground);
             solveBodyFrameLimit(motorcycle);
@@ -156,10 +203,24 @@ public:
 
         // UI
         DrawText(TextFormat("LEVEL %d", level_number), 20, 20, 24, BLACK);
-        DrawText("RIGHT/D: Accelerate    LEFT/A: Reverse    SHIFT: Nitro    R: Reset", 20, 55, 18, BLACK);
+        DrawText(TextFormat("TIME: %.2f", elapsed_time), 20, 55, 22, BLACK);
+        DrawText("RIGHT/D: Accelerate    LEFT/A: Reverse", 20, 90, 18, BLACK);
+        DrawText("P: Pause    R: Restart", 20, 115, 18, BLACK);
 
         // debug
         // DrawText(motorcycle.front_wheel_on_ground ? "FRONT: GROUNDED" : "FRONT: AIRBORNE", 20, 100, 18, motorcycle.front_wheel_on_ground ? GREEN : RED);
         // DrawText(motorcycle.rear_wheel_on_ground ? "REAR: GROUNDED" : "REAR: AIRBORNE", 20, 125, 18, motorcycle.rear_wheel_on_ground ? GREEN : RED);
+
+        // state overlays
+        if (level_state == LevelState::READY) {
+            DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.45f));
+            DrawText(TextFormat("STARTING IN: %d", static_cast<int>(countdown_timer + 0.99f)), GetScreenWidth() / 2 - 180, GetScreenHeight() / 2 - 30, 48, WHITE);
+        }
+
+        if (level_state == LevelState::PAUSED) {
+            DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(BLACK, 0.55f) );
+            DrawText("PAUSED", GetScreenWidth() / 2 - 100, GetScreenHeight() / 2 - 50, 48, WHITE );
+            DrawText("P: RESUME    R: RESTART", GetScreenWidth() / 2 - 150, GetScreenHeight() / 2 + 20, 22, WHITE );
+        }
     }
 };
